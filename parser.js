@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24
+// @version      2024-03-24.001
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
