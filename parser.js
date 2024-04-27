@@ -38,7 +38,9 @@
                         console.log('looking for sold category')
                         element = document.querySelector(selector);
                         try {
-                            var soldCategory = getElementByXpath('//html/body/div[1]/div/div[4]/div/div/div/div[3]/div/div[1]/div[1]/div[2]/h5[6]')
+                            let buttons = Array.from(document.querySelectorAll('h5'))
+                            let optionsButtons = buttons.filter(i => i.textContent == 'Sold')
+                            let soldCategory = optionsButtons.length > 0 ? optionsButtons[0] : null
                             if (soldCategory === null) {
                                 console.log("didn't find sold category")
                                 return;
