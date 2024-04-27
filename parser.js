@@ -97,7 +97,7 @@
             "Washington Commanders"
         ]
         function isATeamGiveaway(value) {
-            return Teams.filter(i => value.indexOf(i) != -1).length > 0
+            return Teams.filter(i => value.indexOf(i) !== -1).length > 0
         }
 
         waitForElm('#notification-wrapper').then((soldCategory) => {
@@ -132,7 +132,7 @@
 
                                         let productNameContainer = flex.childNodes[0]
                                         let isGiveaway = false
-                                        if (productNameContainer.innerText.indexOf('Giveaway') !== -1 || !isATeamGiveaway(productNameContainer.innerText)) {
+                                        if (productNameContainer.innerText.indexOf('Giveaway') !== -1 && !isATeamGiveaway(productNameContainer.innerText)) {
                                             isGiveaway = true
                                         }
 
