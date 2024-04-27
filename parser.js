@@ -114,7 +114,13 @@
                             mutation.addedNodes.forEach(addedNode => {
                                 try {
                                     let divItem = addedNode
-                                    console.log('new added node', addedNode)
+                                    let attributes = divItem.attributes
+                                    let index = attributes.getNamedItem('data-index')
+                                    console.log(['new added node', addedNode, index])
+                                    if (index.value !== '0') {
+                                        return
+                                    }
+                                    console.log('adding')
                                     setTimeout(() => {
                                         let divListingItem = divItem.childNodes[0]
                                         let flexParent = divListingItem.childNodes[0]
@@ -125,9 +131,9 @@
                                         let username = span.childNodes[0].wholeText
 
                                         let productNameContainer = flex.childNodes[0]
-                                        let isGiveaway = true
-                                        if (productNameContainer.innerText.indexOf('2020') != -1 || isATeamGiveaway(productNameContainer.innerText)) {
-                                            isGiveaway = false
+                                        let isGiveaway = false
+                                        if (productNameContainer.innerText.indexOf('Giveaway') !== -1 || !isATeamGiveaway(productNameContainer.innerText)) {
+                                            isGiveaway = true
                                         }
 
                                         let priceParent = flex.childNodes[6]
