@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.001
+// @version      2024-03-24.002
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -138,7 +138,7 @@
 
                                         let priceParent = flex.childNodes[6]
                                         let priceValue = priceParent.childNodes[0]
-                                        let price = parseInt(priceValue.wholeText.split('$')[1])
+                                        let price = parseInt(priceValue.wholeText.split('$')[1].replace(',', '').replace('.', ''))
                                         let entity = {customer: username, is_giveaway: isGiveaway, price: price}
                                         console.log('setting entity to ', entity)
                                         GM_setValue('newEvent', entity)
