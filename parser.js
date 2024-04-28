@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.002
+// @version      2024-03-24.001
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -27,7 +27,7 @@
         var element = null;
         var usernameList = []
 
-        function waitForElm (selector) {
+        const waitForElm = function (selector) {
             return new Promise(resolve => {
                 if (document.querySelector(selector)) {
                     return resolve(document.querySelector(selector));
@@ -102,6 +102,7 @@
 
         waitForElm('#notification-wrapper').then((soldCategory) => {
             console.log(soldCategory)
+            soldCategory.style.backgroundColor = 'green';
             console.log("Username parser is init")
 
             function mouseHandler() {
@@ -138,10 +139,24 @@
 
                                         let priceParent = flex.childNodes[6]
                                         let priceValue = priceParent.childNodes[0]
-                                        let price = parseInt(priceValue.wholeText.split('$')[1].replace(',', '').replace('.', ''))
+                                        let price = parseInt(priceValue.wholeText.split('$')[1])
                                         let entity = {customer: username, is_giveaway: isGiveaway, price: price}
+                                        // Create a new element
+                                        const sentElement = document.createElement('div');
+
+                                        // Set the text content
+                                        sentElement.textContent = 'Sent';
+
+                                        // Set the styles
+                                        sentElement.style.backgroundColor = 'green';
+                                        sentElement.style.color = 'white';
+                                        sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
+                                        sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+
+                                        // Append the new element to the existing element
+                                        divListingItem.appendChild(sentElement);
                                         console.log('setting entity to ', entity)
-                                        GM_setValue('newEvent', entity)
+                                        //GM_setValue('newEvent', entity)
                                     }, 2000)
                                 } catch(e) {
                                     console.log('an error occured: ', e)
@@ -164,6 +179,7 @@
                     });
                     console.log("New event observer is started")
                 }, 5000)
+                soldCategory.style.backgroundColor = 'red';
                 console.log("New event observer is init")
             }
             soldCategory.addEventListener('click', mouseHandler)
