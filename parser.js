@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.001
+// @version      2024-03-24
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -100,12 +100,22 @@
             return Teams.filter(i => value.indexOf(i) !== -1).length > 0
         }
 
-        waitForElm('#notification-wrapper').then((soldCategory) => {
+        let prev = null
+        let id = setInterval(() => {
+            let buttons = Array.from(document.querySelectorAll('h5'))
+            let optionsButtons = buttons.filter(i => i.textContent == 'Sold')
+            let soldCategory = optionsButtons.length > 0 ? optionsButtons[0] : null
+            if (soldCategory === null) {
+                console.log("didn't find sold category")
+                return;
+            }
+            console.log('found sold category', soldCategory)
             console.log(soldCategory)
             soldCategory.style.backgroundColor = 'green';
             console.log("Username parser is init")
 
             function mouseHandler() {
+                clearInterval(id)
                 const observer = new MutationObserver(mutationsList => {
                     // Loop through each mutation in the mutationsList
                     for (let mutation of mutationsList) {
@@ -156,7 +166,7 @@
                                         // Append the new element to the existing element
                                         divListingItem.appendChild(sentElement);
                                         console.log('setting entity to ', entity)
-                                        //GM_setValue('newEvent', entity)
+                                        GM_setValue('newEvent', entity)
                                     }, 2000)
                                 } catch(e) {
                                     console.log('an error occured: ', e)
@@ -182,10 +192,13 @@
                 soldCategory.style.backgroundColor = 'red';
                 console.log("New event observer is init")
             }
+            if (prev != null) {
+                prev.removeEventListener('click', mouseHandler)
+                prev.style.backgroundColor = '';
+            }
+            prev = soldCategory
             soldCategory.addEventListener('click', mouseHandler)
-
-
-        });
+        }, 5000)
         console.log("Username sender is started")
     } else {
         function setReactInput(node, value) {
