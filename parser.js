@@ -249,6 +249,7 @@
                     window.dispatchEvent(new CustomEvent(newEventEvent, { detail: {event: event} }));
                 }, 1500)
                 console.log("Username receiver is started")
+                parentNode.removeChild(parentDiv)
             }
         }
 
