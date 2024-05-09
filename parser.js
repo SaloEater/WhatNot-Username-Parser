@@ -45,9 +45,16 @@
         toolSelector.style.marginBottom = '10px'; // Add some margin for spacing
         parentNode.appendChild(toolSelector);
 
+        var button = document.createElement('button')
+        button.textContent = 'X'
+        parentNode.appendChild(button);
+
+        button.addEventListener('click', function () {
+            document.body.removeChild(toolsNode)
+        })
+
         var toolContainer = document.createElement('div')
         parentNode.appendChild(toolContainer);
-
 
         // Define tool options
         var toolOptions = [
@@ -331,17 +338,6 @@
                             active = true
                         }, 1000)*/
         })
-
-        /*document.addEventListener('click', function(event) {
-            if (active) {
-                const rootElement = document.body;
-//                const clickedElement = event.target.parentNode; // Get the element that was clicked
-                const clickedElement = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3)')
-                console.log(clickedElement)
-                removeNonRelatedNodes(rootElement, clickedElement); // Call the function to remove non-related nodes
-                parentNode.removeChild(parentDiv)
-            }
-        });*/
 
         parentNode.appendChild(parentDiv)
     }
