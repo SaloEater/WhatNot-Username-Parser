@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24
+// @version      2024-03-24.001
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -53,6 +53,7 @@
         var toolOptions = [
             { name: 'Username Parser', tool: createUsernameParserTool },
             { name: 'Chat Only', tool: createChatOnlyTool },
+            { name: 'Notes', tool: createNotesTool},
         ];
 
         // Populate dropdown options
@@ -344,4 +345,45 @@
 
         parentNode.appendChild(parentDiv)
     }
+
+    function createNotesTool(parentNode) {
+        // Create a new div for the quantity tool
+        const parentDiv = document.createElement('div');
+        parentDiv.style.border = '1px solid black'; // Add border
+        parentDiv.style.padding = '10px'; // Add padding for spacing
+
+        // Create a textarea
+        const textarea = document.createElement('textarea');
+        textarea.placeholder = 'Notes';
+        textarea.style.width = '150px'; // Adjust width as necessary
+        textarea.rows = 4; // Set number of visible rows
+        parentDiv.appendChild(textarea);
+
+        // Create a button
+        const setNotesButton = document.createElement('button');
+        setNotesButton.textContent = 'Set notes';
+        parentDiv.appendChild(setNotesButton);
+
+        setNotesButton.addEventListener('click', () => {
+            // Replace line breaks with "\n" character
+            const text = textarea.value
+
+            // Assuming you have a specific textarea to update
+            const textAreaToUpdate = document.querySelector('body > div.ReactModalPortal > div > div > div.B7Gw0 > div:nth-child(7) > textarea');
+
+            // Set the value of the specific textarea
+            const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLTextAreaElement.prototype,
+                'value'
+            ).set;
+            nativeTextAreaValueSetter.call(textAreaToUpdate, text);
+
+            // Dispatch input event to notify any listeners
+            const event = new Event('input', { bubbles: true });
+            textAreaToUpdate.dispatchEvent(event);
+        });
+
+        parentNode.appendChild(parentDiv);
+    }
+
 })();
