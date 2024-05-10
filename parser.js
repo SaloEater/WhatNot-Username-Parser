@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.002
+// @version      2024-03-24.003
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -167,36 +167,40 @@
                                             }
                                             console.log('adding')
                                             setTimeout(() => {
-                                                let divListingItem = divItem.childNodes[0]
-                                                let flexParent = divListingItem.childNodes[0]
-                                                let flex = flexParent.childNodes[0]
-                                                let divColumn = flex.childNodes[4]
-                                                let p = divColumn.childNodes[2]
-                                                let span = p.childNodes[2]
-                                                let username = span.childNodes[0].wholeText
+                                                try {
+                                                    let divListingItem = divItem.childNodes[0]
+                                                    let flexParent = divListingItem.childNodes[0]
+                                                    let flex = flexParent.childNodes[0]
+                                                    let divColumn = flex.childNodes[4]
+                                                    let p = divColumn.childNodes[2]
+                                                    let span = p.childNodes[2]
+                                                    let username = span.childNodes[0].wholeText
 
-                                                let productNameContainer = flex.childNodes[0]
+                                                    let productNameContainer = flex.childNodes[0]
 
-                                                let priceParent = flex.childNodes[6]
-                                                let priceValue = priceParent.childNodes[0]
-                                                let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                let entity = {customer: username, price: price, name: productNameContainer}
-                                                // Create a new element
-                                                const sentElement = document.createElement('div');
+                                                    let priceParent = flex.childNodes[6]
+                                                    let priceValue = priceParent.childNodes[0]
+                                                    let price = parseInt(priceValue.wholeText.split('$')[1])
+                                                    let entity = {customer: username, price: price, name: productNameContainer}
+                                                    // Create a new element
+                                                    const sentElement = document.createElement('div');
 
-                                                // Set the text content
-                                                sentElement.textContent = 'Sent';
+                                                    // Set the text content
+                                                    sentElement.textContent = 'Sent';
 
-                                                // Set the styles
-                                                sentElement.style.backgroundColor = 'green';
-                                                sentElement.style.color = 'white';
-                                                sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
-                                                sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+                                                    // Set the styles
+                                                    sentElement.style.backgroundColor = 'green';
+                                                    sentElement.style.color = 'white';
+                                                    sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
+                                                    sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
 
-                                                // Append the new element to the existing element
-                                                divListingItem.appendChild(sentElement);
-//                                                console.log('setting entity to ', entity)
-                                                GM_setValue('newEvent', entity)
+                                                    // Append the new element to the existing element
+                                                    divListingItem.appendChild(sentElement);
+                                                    console.log('setting entity to ', entity)
+                                                    GM_setValue('newEvent', entity)
+                                                } catch (e) {
+                                                    console.log('element is preparing: ', e)
+                                                }
                                             }, 2000)
                                         } catch(e) {
                                             console.log('an error occured: ', e)
