@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.001
+// @version      2024-03-24.002
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -161,7 +161,7 @@
                                             let divItem = addedNode
                                             let attributes = divItem.attributes
                                             let index = attributes.getNamedItem('data-index')
-                                            console.log(['new added node', addedNode, index])
+                                            //console.log(['new added node', addedNode, index])
                                             if (index.value !== '0') {
                                                 return
                                             }
@@ -176,15 +176,11 @@
                                                 let username = span.childNodes[0].wholeText
 
                                                 let productNameContainer = flex.childNodes[0]
-                                                let isGiveaway = false
-                                                if (productNameContainer.innerText.indexOf('Giveaway') !== -1 && !isATeamGiveaway(productNameContainer.innerText)) {
-                                                    isGiveaway = true
-                                                }
 
                                                 let priceParent = flex.childNodes[6]
                                                 let priceValue = priceParent.childNodes[0]
                                                 let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                let entity = {customer: username, is_giveaway: isGiveaway, price: price}
+                                                let entity = {customer: username, price: price, name: productNameContainer}
                                                 // Create a new element
                                                 const sentElement = document.createElement('div');
 
@@ -199,7 +195,7 @@
 
                                                 // Append the new element to the existing element
                                                 divListingItem.appendChild(sentElement);
-                                                console.log('setting entity to ', entity)
+//                                                console.log('setting entity to ', entity)
                                                 GM_setValue('newEvent', entity)
                                             }, 2000)
                                         } catch(e) {
