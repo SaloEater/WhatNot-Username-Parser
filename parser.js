@@ -181,7 +181,7 @@
                                                     let priceParent = flex.childNodes[6]
                                                     let priceValue = priceParent.childNodes[0]
                                                     let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                    let entity = {customer: username, price: price, name: productNameContainer}
+                                                    let entity = {customer: username, price: price, name: productNameContainer.innerText}
                                                     // Create a new element
                                                     const sentElement = document.createElement('div');
 
