@@ -168,22 +168,35 @@
                                             console.log('adding')
                                             setTimeout(() => {
                                                 try {
-                                                    let divListingItem = divItem.childNodes[0]
-                                                    let flexParent = divListingItem.childNodes[0]
-                                                    let flex = flexParent.childNodes[0]
-                                                    let divColumn = flex.childNodes[4]
-                                                    let p = divColumn.childNodes[2]
-                                                    let span = p.childNodes[2]
-                                                    let username = span.childNodes[0].wholeText
-
-                                                    let productNameContainer = flex.childNodes[0]
-
-                                                    let priceParent = flex.childNodes[6]
-                                                    let priceValue = priceParent.childNodes[0]
-                                                    let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                    let entity = {customer: username, price: price, name: productNameContainer.innerText}
-                                                    // Create a new element
                                                     const sentElement = document.createElement('div');
+                                                    let divListingItem = divItem.childNodes[0]
+                                                    let divDisplayFlex = divListingItem.childNodes[0]
+                                                    let divFlex = divDisplayFlex.childNodes[0]
+
+                                                    let entity = {customer: '?', price: 0, name: ''}
+
+                                                    if (divFlex.childNodes.length > 7) {
+                                                        let divColumn = divFlex.childNodes[4]
+                                                        let p = divColumn.childNodes[2]
+                                                        let span = p.childNodes[2]
+                                                        let username = span.childNodes[0].wholeText
+
+                                                        let productNameContainer = divFlex.childNodes[0]
+
+                                                        let priceParent = divFlex.childNodes[6]
+                                                        let priceValue = priceParent.childNodes[0]
+                                                        let price = parseInt(priceValue.wholeText.split('$')[1])
+                                                        entity = {customer: username, price: price, name: productNameContainer.innerText}
+                                                    } else {
+                                                        let divDirColumn = divFlex.childNodes[2]
+                                                        let p = divDirColumn.childNodes[2]
+                                                        let span = p.childNodes[2]
+                                                        let username = span.childNodes[0].wholeText
+
+                                                        let productNameContainer = divFlex.childNodes[0]
+
+                                                        entity = {customer: username, price: 0, name: productNameContainer.innerText}
+                                                    }
 
                                                     // Set the text content
                                                     sentElement.textContent = 'Sent';
@@ -212,7 +225,7 @@
 
 
                         setTimeout(() => {
-                            let eventLog = document.querySelector('[data-test-id=virtuoso-item-list]');
+                            let eventLog = document.querySelector('[data-testid=virtuoso-item-list]');
                             console.log(eventLog)
                             if (!eventLog) {
                                 console.log('event log is not found')
@@ -327,7 +340,7 @@
         let active = false
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const clickedElement = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3)')
+            const clickedElement = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
             console.log(clickedElement)
             removeNonRelatedNodes(rootElement, clickedElement); // Call the function to remove non-related nodes
             parentNode.removeChild(parentDiv)
