@@ -294,22 +294,21 @@
     }
 
     function createChatOnlyTool(parentNode) {
-        function removeNonRelatedNodes(rootElement, targetElement) {
+        function removeNonRelatedNodes(rootElement, targetElements) {
             const queue = [rootElement]; // Queue to traverse the DOM tree
-            let targetHit = false
+            let targetHit = false;
 
             while (queue.length > 0) {
                 const currentElement = queue.shift(); // Dequeue current element
                 if (!targetHit) {
-                    currentElement.style.height = '100%'
-                    currentElement.style.width = '100%'
+                    currentElement.style.height = '100%';
+                    currentElement.style.width = '100%';
                 }
-//                currentElement.style.width = '100%'
-                if (currentElement == targetElement) {
-                    targetHit = true
+                if (targetElements.includes(currentElement)) {
+                    targetHit = true;
                 }
-                // Check if the current element is not the target element, and not a direct child or parent of the target element
-                if (currentElement !== targetElement && !currentElement.contains(targetElement) && !targetElement.contains(currentElement)) {
+                // Check if the current element is not related to any target elements
+                if (!targetElements.some(targetElement => currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement))) {
                     // Remove the current element
                     currentElement.parentNode.removeChild(currentElement);
                 } else {
@@ -319,41 +318,43 @@
             }
         }
 
-
         // Create a new div for the quantity tool
         var parentDiv = document.createElement('div');
         parentDiv.style.border = '1px solid black'; // Add border
         parentDiv.style.padding = '10px'; // Add padding for spacing
-
-        // Create a text input
-        /*const input = document.createElement('input');
-        input.type = 'text';
-        input.placeholder = '';
-        input.style.width = '50px'; // Adjust width as necessary
-        parentDiv.appendChild(input);*/
 
         // Create a button
         const dButton = document.createElement('button');
         dButton.textContent = 'Clean page';
         parentDiv.appendChild(dButton);
 
-        let active = false
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const clickedElement = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
-            console.log(clickedElement)
-            removeNonRelatedNodes(rootElement, clickedElement); // Call the function to remove non-related nodes
-            parentNode.removeChild(parentDiv)
+            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
+            let chatParent = document.querySelector('#bottom-section-stream-container')
+            chatParent.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+            chatParent.firstChild.style.background = '';
+            chatParent.style.height = '100%';
+            const targetElements = [
+                chatWindow,
+                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div')
+                // Add other target elements here
+            ];
+            console.log(targetElements);
+            removeNonRelatedNodes(rootElement, targetElements); // Call the function to remove non-related nodes
 
-            /*            dButton.disabled = true
-                        dButton.textContent = 'Click on the element'
-                        setTimeout(() => {
-                            active = true
-                        }, 1000)*/
-        })
+            var styleElement = document.createElement('style');
+            styleElement.type = 'text/css';
+            styleElement.innerHTML = '#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) * { background-color: rgba(0, 0, 0, 0.1) !important; }';
+            document.head.appendChild(styleElement);
 
-        parentNode.appendChild(parentDiv)
+            parentNode.removeChild(parentDiv);
+        });
+
+
+        parentNode.appendChild(parentDiv);
     }
+
 
     function createNotesTool(parentNode) {
         // Create a new div for the quantity tool
