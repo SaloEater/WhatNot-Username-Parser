@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.004
+// @version      2024-03-24.005
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -337,7 +337,7 @@
             chatParent.style.height = '100%';
             const targetElements = [
                 chatWindow,
-                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div'),
+                document.querySelector('#bottom-section-stream-container > div > div > div:nth-child(1) > div > div:nth-child(3)'),
                 document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
                 // Add other target elements here
             ];
@@ -372,6 +372,9 @@
             // Call the function to update styles for all nested children
             updateNestedStyles(price, 'font-size', '60px');
             updateNestedStyles(price, 'line-height', '');
+            console.log(price)
+            price.style.height = ""
+            console.log(price.style.height)
 
             parentNode.removeChild(parentDiv);
         });
