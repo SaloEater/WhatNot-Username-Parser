@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.005
+// @version      2024-03-24.007
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -330,14 +330,14 @@
 
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
+            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div > div:nth-child(1) > div > div:nth-child(3)')
             let chatParent = document.querySelector('#bottom-section-stream-container')
             chatParent.style.backgroundColor = 'rgba(0, 0, 0, 0)';
             chatParent.firstChild.style.background = '';
             chatParent.style.height = '100%';
             const targetElements = [
                 chatWindow,
-                document.querySelector('#bottom-section-stream-container > div > div > div:nth-child(1) > div > div:nth-child(3)'),
+                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'),
                 document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
                 // Add other target elements here
             ];
@@ -352,8 +352,8 @@
             const price = targetElements[2]
             price.style.position = "absolute"
             price.style.zIndex = 999
-            price.style.right = 0
-            price.style.top = 0
+            price.style.right = "1%"
+            price.style.top = "1%"
 
             price.childNodes.forEach(i => {
                 i.style.backgroundColor='black'
@@ -361,7 +361,7 @@
 
             function updateNestedStyles(element, property, value) {
                 // Apply the style to the current element
-                element.style.setProperty(property, value, 'important');
+                element.style[property] = value
 
                 // Recursively apply the style to all child elements
                 Array.from(element.children).forEach(child => {
@@ -370,7 +370,7 @@
             }
 
             // Call the function to update styles for all nested children
-            updateNestedStyles(price, 'font-size', '60px');
+            updateNestedStyles(price, 'font-size', '35px');
             updateNestedStyles(price, 'line-height', '');
             console.log(price)
             price.style.height = ""
