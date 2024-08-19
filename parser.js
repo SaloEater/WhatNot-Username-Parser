@@ -337,7 +337,8 @@
             chatParent.style.height = '100%';
             const targetElements = [
                 chatWindow,
-                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div')
+                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div'),
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
                 // Add other target elements here
             ];
             console.log(targetElements);
@@ -347,6 +348,30 @@
             styleElement.type = 'text/css';
             styleElement.innerHTML = '#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) * { background-color: rgba(0, 0, 0, 0.1) !important; }';
             document.head.appendChild(styleElement);
+
+            const price = targetElements[2]
+            price.style.position = "absolute"
+            price.style.zIndex = 999
+            price.style.right = 0
+            price.style.top = 0
+
+            price.childNodes.forEach(i => {
+                i.style.backgroundColor='black'
+            })
+
+            function updateNestedStyles(element, property, value) {
+                // Apply the style to the current element
+                element.style.setProperty(property, value, 'important');
+
+                // Recursively apply the style to all child elements
+                Array.from(element.children).forEach(child => {
+                    updateNestedStyles(child, property, value);
+                });
+            }
+
+            // Call the function to update styles for all nested children
+            updateNestedStyles(price, 'font-size', '60px');
+            updateNestedStyles(price, 'line-height', '');
 
             parentNode.removeChild(parentDiv);
         });
