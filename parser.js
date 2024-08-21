@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.007
+// @version      2024-03-24.008
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -10,8 +10,45 @@
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant       GM_getValue
 // @grant       GM_setValue
+// @grant       GM_addStyle
 // @run-at document-idle
 // ==/UserScript==
+
+GM_addStyle(`
+.mob-chat {
+ max-height: 90% !important;
+ top: 10% !important;
+}
+.mob-price {
+ position: absolute;
+ z-index: 999;
+ right: 0.5%;
+ top: 0.5%;
+ height: '';
+}
+.mob-price-child {
+ background-color: black;
+}
+.bottom-container {
+ background-color: rgba(0, 0, 0, 0);
+ height: 100% !important;
+}
+.mob-chat-parent:first-child {
+ height: 100%;
+ background: '';
+}
+.mob-last-buyer {
+ position: absolute !important;
+ right: 1% !important;
+ top: 1% !important;
+}
+.mob-last-buyer > first-child {
+ background-color: black;
+}
+.mob-chat-parent {
+ justify-content: end !important;
+}
+`);
 
 (function() {
     'use strict';
@@ -330,15 +367,17 @@
 
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div > div:nth-child(1) > div > div:nth-child(3)')
-            let chatParent = document.querySelector('#bottom-section-stream-container')
-            chatParent.style.backgroundColor = 'rgba(0, 0, 0, 0)';
-            chatParent.firstChild.style.background = '';
-            chatParent.style.height = '100%';
+            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
+            let bottomContainer = document.querySelector('#bottom-section-stream-container')
+            chatWindow.classList.add('mob-chat')
+            let chatWindowParent = chatWindow.parentNode
+            chatWindowParent.classList.add('mob-chat-parent')
+            bottomContainer.classList.add('bottom-container')
             const targetElements = [
                 chatWindow,
                 document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'),
-                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)')
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)'),
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)')
                 // Add other target elements here
             ];
             console.log(targetElements);
@@ -350,13 +389,10 @@
             document.head.appendChild(styleElement);
 
             const price = targetElements[2]
-            price.style.position = "absolute"
-            price.style.zIndex = 999
-            price.style.right = "1%"
-            price.style.top = "1%"
+            price.classList.add('mob-price')
 
             price.childNodes.forEach(i => {
-                i.style.backgroundColor='black'
+                i.classList.add('mob-price-child')
             })
 
             function updateNestedStyles(element, property, value) {
@@ -372,9 +408,9 @@
             // Call the function to update styles for all nested children
             updateNestedStyles(price, 'font-size', '35px');
             updateNestedStyles(price, 'line-height', '');
-            console.log(price)
-            price.style.height = ""
-            console.log(price.style.height)
+
+            const lastBuyer = targetElements[3]
+            lastBuyer.classList.add('mob-last-buyer')
 
             parentNode.removeChild(parentDiv);
         });
