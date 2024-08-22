@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.008
+// @version      2024-03-24.010
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -41,12 +41,18 @@ GM_addStyle(`
  position: absolute !important;
  right: 1% !important;
  top: 1% !important;
+ width: 90% !important;
 }
-.mob-last-buyer > first-child {
+.mob-last-buyer > :first-child {
  background-color: black;
 }
 .mob-chat-parent {
  justify-content: end !important;
+}
+.mob-online {
+ position: absolute;
+ left: 0;
+ top: 0;
 }
 `);
 
@@ -367,7 +373,7 @@ GM_addStyle(`
 
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1)')
+            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(3)')
             let bottomContainer = document.querySelector('#bottom-section-stream-container')
             chatWindow.classList.add('mob-chat')
             let chatWindowParent = chatWindow.parentNode
@@ -377,7 +383,8 @@ GM_addStyle(`
                 chatWindow,
                 document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'),
                 document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)'),
-                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)')
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)'),
+                document.querySelector('#top-section-stream-container > div:nth-child(1) > div:nth-child(2) > div > div > div:nth-child(1)')
                 // Add other target elements here
             ];
             console.log(targetElements);
