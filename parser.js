@@ -351,7 +351,7 @@ GM_addStyle(`
                     targetHit = true;
                 }
                 // Check if the current element is not related to any target elements
-                if (!targetElements.some(targetElement => currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement))) {
+                if (!targetElements.some(targetElement => currentElement && targetElement && (currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement)))) {
                     // Remove the current element
                     currentElement.parentNode.removeChild(currentElement);
                 } else {
