@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.010
+// @version      2024-03-24.011
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -395,12 +395,6 @@ GM_addStyle(`
             styleElement.innerHTML = '#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) * { background-color: rgba(0, 0, 0, 0.1) !important; }';
             document.head.appendChild(styleElement);
 
-            const price = targetElements[2]
-            price.classList.add('mob-price')
-
-            price.childNodes.forEach(i => {
-                i.classList.add('mob-price-child')
-            })
 
             function updateNestedStyles(element, property, value) {
                 // Apply the style to the current element
@@ -412,12 +406,23 @@ GM_addStyle(`
                 });
             }
 
-            // Call the function to update styles for all nested children
-            updateNestedStyles(price, 'font-size', '35px');
-            updateNestedStyles(price, 'line-height', '');
+            const price = targetElements[2]
+            if (price) {
+                price.classList.add('mob-price')
+
+                price.childNodes.forEach(i => {
+                    i.classList.add('mob-price-child')
+                })
+                // Call the function to update styles for all nested children
+                updateNestedStyles(price, 'font-size', '35px');
+                updateNestedStyles(price, 'line-height', '');
+            }
 
             const lastBuyer = targetElements[3]
-            lastBuyer.classList.add('mob-last-buyer')
+            if (lastBuyer) {
+                lastBuyer.classList.add('mob-last-buyer')
+            }
+
 
             parentNode.removeChild(parentDiv);
         });
