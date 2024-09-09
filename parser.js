@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.012
+// @version      2024-03-24.014
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -25,9 +25,13 @@ GM_addStyle(`
  right: 0.5%;
  top: 0.5%;
  height: '';
+ background-color: black;
+ padding: 1%;
+}
+.mob-price * {
+ font-size: 25px !important;
 }
 .mob-price-child {
- background-color: black;
 }
 .bottom-container {
  background-color: rgba(0, 0, 0, 0);
@@ -41,7 +45,7 @@ GM_addStyle(`
  position: absolute !important;
  right: 1% !important;
  top: 1% !important;
- width: 90% !important;
+ width: 50% !important;
 }
 .mob-last-buyer > :first-child {
  background-color: black;
@@ -353,7 +357,8 @@ GM_addStyle(`
                 // Check if the current element is not related to any target elements
                 if (!targetElements.some(targetElement => currentElement && targetElement && (currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement)))) {
                     // Remove the current element
-                    currentElement.parentNode.removeChild(currentElement);
+                    currentElement.style.display = "none"
+                    //currentElement.parentNode.removeChild(currentElement);
                 } else {
                     // Add the children of the current element to the queue for further traversal
                     Array.from(currentElement.children).forEach(child => queue.push(child));
@@ -379,6 +384,7 @@ GM_addStyle(`
             let chatWindowParent = chatWindow.parentNode
             chatWindowParent.classList.add('mob-chat-parent')
             bottomContainer.classList.add('bottom-container')
+
             const targetElements = [
                 chatWindow,
                 document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'), //livestream
