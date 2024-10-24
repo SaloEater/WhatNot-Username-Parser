@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.014
+// @version      2024-03-24.010
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
@@ -25,13 +25,9 @@ GM_addStyle(`
  right: 0.5%;
  top: 0.5%;
  height: '';
- background-color: black;
- padding: 1%;
-}
-.mob-price * {
- font-size: 25px !important;
 }
 .mob-price-child {
+ background-color: black;
 }
 .bottom-container {
  background-color: rgba(0, 0, 0, 0);
@@ -45,7 +41,7 @@ GM_addStyle(`
  position: absolute !important;
  right: 1% !important;
  top: 1% !important;
- width: 50% !important;
+ width: 90% !important;
 }
 .mob-last-buyer > :first-child {
  background-color: black;
@@ -108,6 +104,7 @@ GM_addStyle(`
             { name: 'Username Parser', tool: createUsernameParserTool },
             { name: 'Chat Only', tool: createChatOnlyTool },
             { name: 'Notes', tool: createNotesTool},
+            { name: 'Giveaway Alarm', tool: createGiveawayAlarmTool}
         ];
 
         // Populate dropdown options
@@ -355,10 +352,9 @@ GM_addStyle(`
                     targetHit = true;
                 }
                 // Check if the current element is not related to any target elements
-                if (!targetElements.some(targetElement => currentElement && targetElement && (currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement)))) {
+                if (!targetElements.some(targetElement => currentElement === targetElement || currentElement.contains(targetElement) || targetElement.contains(currentElement))) {
                     // Remove the current element
-                    currentElement.style.display = "none"
-                    //currentElement.parentNode.removeChild(currentElement);
+                    currentElement.parentNode.removeChild(currentElement);
                 } else {
                     // Add the children of the current element to the queue for further traversal
                     Array.from(currentElement.children).forEach(child => queue.push(child));
@@ -384,13 +380,12 @@ GM_addStyle(`
             let chatWindowParent = chatWindow.parentNode
             chatWindowParent.classList.add('mob-chat-parent')
             bottomContainer.classList.add('bottom-container')
-
             const targetElements = [
                 chatWindow,
-                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'), //livestream
-                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)'), //price
-                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)'), //last buyer
-                document.querySelector('#top-section-stream-container > div:nth-child(1) > div:nth-child(2) > div > div > div:nth-child(1)') //online
+                document.querySelector('#app > div > div.fresnel-container.fresnel-lessThan-lg.Z9_Zr > div:nth-child(2) > div:nth-child(1) > div > div > video'),
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(2) > div:nth-child(2)'),
+                document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)'),
+                document.querySelector('#top-section-stream-container > div:nth-child(1) > div:nth-child(2) > div > div > div:nth-child(1)')
                 // Add other target elements here
             ];
             console.log(targetElements);
@@ -401,6 +396,12 @@ GM_addStyle(`
             styleElement.innerHTML = '#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) > div:nth-child(1) * { background-color: rgba(0, 0, 0, 0.1) !important; }';
             document.head.appendChild(styleElement);
 
+            const price = targetElements[2]
+            price.classList.add('mob-price')
+
+            price.childNodes.forEach(i => {
+                i.classList.add('mob-price-child')
+            })
 
             function updateNestedStyles(element, property, value) {
                 // Apply the style to the current element
@@ -412,23 +413,12 @@ GM_addStyle(`
                 });
             }
 
-            const price = targetElements[2]
-            if (price) {
-                price.classList.add('mob-price')
-
-                price.childNodes.forEach(i => {
-                    i.classList.add('mob-price-child')
-                })
-                // Call the function to update styles for all nested children
-                updateNestedStyles(price, 'font-size', '35px');
-                updateNestedStyles(price, 'line-height', '');
-            }
+            // Call the function to update styles for all nested children
+            updateNestedStyles(price, 'font-size', '35px');
+            updateNestedStyles(price, 'line-height', '');
 
             const lastBuyer = targetElements[3]
-            if (lastBuyer) {
-                lastBuyer.classList.add('mob-last-buyer')
-            }
-
+            lastBuyer.classList.add('mob-last-buyer')
 
             parentNode.removeChild(parentDiv);
         });
@@ -436,7 +426,6 @@ GM_addStyle(`
 
         parentNode.appendChild(parentDiv);
     }
-
 
     function createNotesTool(parentNode) {
         // Create a new div for the quantity tool
@@ -476,6 +465,99 @@ GM_addStyle(`
         });
 
         parentNode.appendChild(parentDiv);
+    }
+
+    let isGiveawayAlarmToolRunning = false;
+
+    function createGiveawayAlarmTool(parentNode) {
+        if (isGiveawayAlarmToolRunning) {
+            console.log('Giveaway alarm tool is already running.');
+            return;
+        }
+
+        isGiveawayAlarmToolRunning = true;
+        let foundEntries = false;
+        let isCheckingEntries = false;
+        let rememberedEntriesDiv = null;
+
+        function checkEntries() {
+            if (isCheckingEntries) {
+                console.log('checkEntries is already running.');
+                return;
+            }
+
+            isCheckingEntries = true;
+
+            // Check if rememberedEntriesDiv is still in the document
+            if (rememberedEntriesDiv && !document.body.contains(rememberedEntriesDiv)) {
+                rememberedEntriesDiv = null;
+            }
+
+            const entriesDiv = rememberedEntriesDiv || Array.from(document.querySelectorAll('div')).find(div => /^\d+ entries$/.test(div.textContent));
+            console.log('Checking for entries div:', entriesDiv);
+
+            if (entriesDiv) {
+                if (!foundEntries) {
+                    console.log('Entries div found for the first time.', entriesDiv);
+                    rememberedEntriesDiv = entriesDiv;
+                }
+                foundEntries = true;
+            } else if (foundEntries) {
+                console.log('Entries div was found before but is now missing.');
+                showAlarm();
+                foundEntries = false;
+                rememberedEntriesDiv = null;
+            } else {
+                console.log('Entries div not found.');
+            }
+
+            isCheckingEntries = false;
+        }
+
+        function showAlarm() {
+            console.log('Showing alarm.');
+            const alarmDiv = document.createElement('div');
+            alarmDiv.textContent = 'Start the giveaway';
+            alarmDiv.style.position = 'fixed';
+            alarmDiv.style.top = '10%';
+            alarmDiv.style.left = '25%'; // Center the div horizontally
+            alarmDiv.style.width = '50%';
+            alarmDiv.style.backgroundColor = 'red';
+            alarmDiv.style.color = 'white';
+            alarmDiv.style.textAlign = 'center';
+            alarmDiv.style.padding = '10px';
+            alarmDiv.style.zIndex = '10000';
+            alarmDiv.style.fontSize = '2em'; // Increase text size
+            alarmDiv.style.border = '5px solid white'; // Restore white border
+
+            // Create a close button
+            const closeButton = document.createElement('button');
+            closeButton.textContent = 'Close';
+            closeButton.style.position = 'absolute';
+            closeButton.style.top = '50%';
+            closeButton.style.right = '10px'; // Slight distance from the right border
+            closeButton.style.transform = 'translateY(-50%)'; // Center vertically
+            closeButton.style.fontSize = '1em'; // Set text size to 1em
+            closeButton.style.padding = '5px'; // Add padding for spacing around text
+            closeButton.style.backgroundColor = 'grey'; // Add grey background
+            closeButton.style.border = '2px solid darkgrey'; // Add darkgrey border
+            closeButton.addEventListener('click', () => {
+                document.body.removeChild(alarmDiv);
+            });
+
+            alarmDiv.appendChild(closeButton);
+            document.body.appendChild(alarmDiv);
+
+            // Auto-close the alarm after 30 seconds
+            setTimeout(() => {
+                if (document.body.contains(alarmDiv)) {
+                    document.body.removeChild(alarmDiv);
+                }
+            }, 30000);
+        }
+
+        console.log('Starting giveaway alarm tool.');
+        setInterval(checkEntries, 1000);
     }
 
 })();
