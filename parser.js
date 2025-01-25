@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.015
+// @version      2024-03-24.016
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/live/*
 // @match        http://localhost:3000/break/*
 // @match        https://whatnot-frontend.vercel.app/break/*
+// @match        https://whatnot-frontend-psi.vercel.app/break/*
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant       GM_getValue
 // @grant       GM_setValue
