@@ -209,17 +209,36 @@ GM_addStyle(`
                                             let divItem = addedNode
                                             let attributes = divItem.attributes
                                             let index = attributes.getNamedItem('data-index')
-                                            //console.log(['new added node', addedNode, index])
-                                            if (index.value !== '0') {
+                                            let isParsed = addedNode.getAttribute('data-parsed');
+                                            console.log(['new added node', addedNode, index])
+                                            if (isParsed) {
+                                                console.log('parsed already')
                                                 return
                                             }
-                                            console.log('adding')
+                                            addedNode.setAttribute('data-parsed', 'true');
+                                            console.log(['parsing', addedNode])
                                             setTimeout(() => {
                                                 try {
                                                     const sentElement = document.createElement('div');
+                                                    if (divItem.childNodes.length <= 0) {
+                                                        console.log('wrong node', divItem)
+                                                        return
+                                                    }
                                                     let divListingItem = divItem.childNodes[0]
+                                                    if (divListingItem.childNodes.length <= 0) {
+                                                        console.log('wrong node', divListingItem)
+                                                        return
+                                                    }
                                                     let divDisplayFlex = divListingItem.childNodes[0]
+                                                    if (divDisplayFlex.childNodes.length <= 0) {
+                                                        console.log('wrong node', divDisplayFlex)
+                                                        return
+                                                    }
                                                     let divFlex = divDisplayFlex.childNodes[0]
+                                                    if (divFlex.childNodes.length <= 0) {
+                                                        console.log('wrong node', divFlex)
+                                                        return
+                                                    }
 
                                                     let entity = {customer: '?', price: 0, name: ''}
 
