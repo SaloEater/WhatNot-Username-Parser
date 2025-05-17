@@ -1,17 +1,21 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.015
+// @version      2024-03-24.017
 // @description  Parse sold events and send them to the system
 // @author       You
+// @match        https://www.whatnot.com/dashboard/live/*
 // @match        https://www.whatnot.com/live/*
 // @match        http://localhost:3000/break/*
 // @match        https://whatnot-frontend.vercel.app/break/*
+// @match        https://whatnot-frontend-psi.vercel.app/break/*
 // @icon         data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_addStyle
 // @run-at document-idle
+// @downloadURL https://update.greasyfork.org/scripts/493638/WhatNot%20Username%20Parser.user.js
+// @updateURL https://update.greasyfork.org/scripts/493638/WhatNot%20Username%20Parser.meta.js
 // ==/UserScript==
 
 GM_addStyle(`
@@ -196,33 +200,58 @@ GM_addStyle(`
                     soldCategory.style.backgroundColor = 'green';
                     console.log("Username parser is init")
 
+                    let teamIds = new Map();
+                    let giveawayIds = new Map();
+
                     function mouseHandler() {
                         clearInterval(id)
                         const observer = new MutationObserver(mutationsList => {
+                            console.log(['mut list', mutationsList])
                             // Loop through each mutation in the mutationsList
                             for (let mutation of mutationsList) {
                                 // Check if nodes were added
                                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                                    console.log(['muts', mutation])
                                     // Process the added nodes
                                     mutation.addedNodes.forEach(addedNode => {
                                         try {
                                             let divItem = addedNode
                                             let attributes = divItem.attributes
                                             let index = attributes.getNamedItem('data-index')
-                                            //console.log(['new added node', addedNode, index])
-                                            if (index.value !== '0') {
+                                            let isParsed = addedNode.getAttribute('data-parsed');
+                                            console.log(['new added node', addedNode, index])
+                                            if (isParsed) {
+                                                console.log('parsed already')
                                                 return
                                             }
-                                            console.log('adding')
+                                            addedNode.setAttribute('data-parsed', 'true');
+                                            console.log(['parsing', addedNode])
                                             setTimeout(() => {
                                                 try {
                                                     const sentElement = document.createElement('div');
+                                                    if (divItem.childNodes.length <= 0) {
+                                                        console.log('wrong node 1', divItem)
+                                                        return
+                                                    }
                                                     let divListingItem = divItem.childNodes[0]
+                                                    if (divListingItem.childNodes.length <= 0) {
+                                                        console.log('wrong node 2', divListingItem)
+                                                        return
+                                                    }
                                                     let divDisplayFlex = divListingItem.childNodes[0]
+                                                    if (divDisplayFlex.childNodes.length <= 0) {
+                                                        console.log('wrong node 3', divDisplayFlex)
+                                                        return
+                                                    }
                                                     let divFlex = divDisplayFlex.childNodes[0]
+                                                    if (divFlex.childNodes.length <= 0) {
+                                                        console.log('wrong node 4', divFlex)
+                                                        return
+                                                    }
 
                                                     let entity = {customer: '?', price: 0, name: ''}
 
+                                                    let wasSent = false
                                                     if (divFlex.childNodes.length > 7) {
                                                         let divColumn = divFlex.childNodes[4]
                                                         let p = divColumn.childNodes[2]
@@ -230,11 +259,28 @@ GM_addStyle(`
                                                         let username = span.childNodes[0].wholeText
 
                                                         let productNameContainer = divFlex.childNodes[0]
-
-                                                        let priceParent = divFlex.childNodes[6]
-                                                        let priceValue = priceParent.childNodes[0]
-                                                        let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                        entity = {customer: username, price: price, name: productNameContainer.innerText}
+                                                        let soldName = productNameContainer.innerText
+                                                        console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
+                                                        if (soldName.toLowerCase().indexOf("giveaway") != -1) {
+                                                            entity = {customer: username, price: 0, name: soldName}
+                                                            let id = soldName.split('#')[1]
+                                                            if (giveawayIds.has(id)) {
+                                                                wasSent = true
+                                                            }
+                                                            giveawayIds.set(id, true)
+                                                            console.log("parsed giveaway id is ", id)
+                                                        } else {
+                                                            let priceParent = divFlex.childNodes[6]
+                                                            let priceValue = priceParent.childNodes[0]
+                                                            let price = parseInt(priceValue.wholeText.split('$')[1])
+                                                            entity = {customer: username, price: price, name: soldName}
+                                                            let id = soldName.split('#')[1]
+                                                            if (teamIds.has(id)) {
+                                                                wasSent = true
+                                                            }
+                                                            teamIds.set(id, true)
+                                                            console.log("parsed team id is ", id)
+                                                        }
                                                     } else {
                                                         let divDirColumn = divFlex.childNodes[2]
                                                         let p = divDirColumn.childNodes[2]
@@ -244,21 +290,44 @@ GM_addStyle(`
                                                         let productNameContainer = divFlex.childNodes[0]
 
                                                         entity = {customer: username, price: 0, name: productNameContainer.innerText}
+                                                        let id = productNameContainer.innerText.split('#')[1]
+                                                        if (giveawayIds.has(id)) {
+                                                            wasSent = true
+                                                        }
+                                                        giveawayIds.set(id, true)
+                                                        console.log("parsed giveaway id is ", id)
                                                     }
 
-                                                    // Set the text content
-                                                    sentElement.textContent = 'Sent';
+                                                    if (wasSent) {
+                                                        // Set the text content
+                                                        sentElement.textContent = 'Already added';
 
-                                                    // Set the styles
-                                                    sentElement.style.backgroundColor = 'green';
-                                                    sentElement.style.color = 'white';
-                                                    sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
-                                                    sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+                                                        // Set the styles
+                                                        sentElement.style.backgroundColor = 'red';
+                                                        sentElement.style.color = 'white';
+                                                        sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
+                                                        sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
 
-                                                    // Append the new element to the existing element
-                                                    divListingItem.appendChild(sentElement);
-                                                    console.log('setting entity to ', entity)
-                                                    GM_setValue('newEvent', entity)
+                                                        // Append the new element to the existing element
+                                                        divListingItem.appendChild(sentElement);
+                                                        console.log("skip, already added", entity.name)
+                                                        return
+                                                    } else {
+                                                        // Set the text content
+                                                        sentElement.textContent = 'Sent';
+
+                                                        // Set the styles
+                                                        sentElement.style.backgroundColor = 'green';
+                                                        sentElement.style.color = 'white';
+                                                        sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
+                                                        sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+
+                                                        // Append the new element to the existing element
+                                                        divListingItem.appendChild(sentElement);
+                                                        console.log('setting entity to ', entity)
+                                                        console.log('old value was ', GM_getValue('newEvent'))
+                                                        GM_setValue('newEvent', entity)
+                                                    }
                                                 } catch (e) {
                                                     console.log('element is preparing: ', e)
                                                 }
@@ -460,7 +529,7 @@ GM_addStyle(`
             const text = textarea.value
 
             // Assuming you have a specific textarea to update
-            const textAreaToUpdate = document.querySelector('body > div.ReactModalPortal > div > div > div.B7Gw0 > div:nth-child(7) > textarea');
+            const textAreaToUpdate = document.querySelector('body > div:nth-child(64) > div > div > div.B7Gw0 > div:nth-child(5) > textarea');
 
             // Set the value of the specific textarea
             const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
