@@ -529,7 +529,7 @@ GM_addStyle(`
             const text = textarea.value
 
             // Assuming you have a specific textarea to update
-            const textAreaToUpdate = document.querySelector('body > div:nth-child(64) > div > div > div.B7Gw0 > div:nth-child(5) > textarea');
+            const textAreaToUpdate = document.querySelector('textarea[placeholder*="notes"]');
 
             // Set the value of the specific textarea
             const nativeTextAreaValueSetter = Object.getOwnPropertyDescriptor(
