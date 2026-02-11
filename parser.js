@@ -197,7 +197,13 @@ font-size: 25px
                 }
 
                 let prev = null
-                let id = setInterval(() => {
+                let prevMouseHandler = null
+                let id = null
+
+                let teamIds = new Map();
+                let giveawayIds = new Map();
+
+                function checkForSoldButton() {
                     let buttons = Array.from(document.querySelectorAll('h5'))
                     let optionsButtons = buttons.filter(i => i.textContent == 'Sold')
                     let soldCategory = optionsButtons.length > 0 ? optionsButtons[0] : null
@@ -205,13 +211,11 @@ font-size: 25px
                         console.log("didn't find sold category")
                         return;
                     }
+                    if (prev === soldCategory) return;
                     console.log('found sold category', soldCategory)
                     console.log(soldCategory)
                     soldCategory.style.backgroundColor = 'green';
                     console.log("Username parser is init")
-
-                    let teamIds = new Map();
-                    let giveawayIds = new Map();
 
                     function mouseHandler() {
                         clearInterval(id)
@@ -366,13 +370,17 @@ font-size: 25px
                         soldCategory.style.backgroundColor = 'red';
                         console.log("New event observer is init")
                     }
-                    if (prev != null) {
-                        prev.removeEventListener('click', mouseHandler)
+                    if (prev != null && prevMouseHandler != null) {
+                        prev.removeEventListener('click', prevMouseHandler)
                         prev.style.backgroundColor = '';
                     }
                     prev = soldCategory
+                    prevMouseHandler = mouseHandler
                     soldCategory.addEventListener('click', mouseHandler)
-                }, 10000)
+                }
+
+                checkForSoldButton();
+                id = setInterval(checkForSoldButton, 100);
                 console.log("Username sender is started")
             } else {
                 function setReactInput(node, value) {
