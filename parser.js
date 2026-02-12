@@ -257,7 +257,7 @@ font-size: 25px
                                                         console.log('wrong node 3', divDisplayFlex)
                                                         return
                                                     }
-                                                    let divFlex = divDisplayFlex.childNodes[0]
+                                                    let divFlex = divDisplayFlex.childNodes[1]
                                                     if (divFlex.childNodes.length <= 0) {
                                                         console.log('wrong node 4', divFlex)
                                                         return
@@ -296,10 +296,11 @@ font-size: 25px
                                                             console.log("parsed team id is ", id)
                                                         }
                                                     } else {
-                                                        let divDirColumn = divFlex.childNodes[2]
-                                                        let p = divDirColumn.childNodes[2]
+                                                        //let divDirColumn = divFlex.childNodes[2]
+                                                        let p = divFlex.childNodes[2]
                                                         let span = p.childNodes[2]
-                                                        let username = span.childNodes[0].wholeText
+                                                        let usernameContainer = span.childNodes[0]
+                                                        let username = usernameContainer.childNodes[0].wholeText
 
                                                         let productNameContainer = divFlex.childNodes[0]
 
