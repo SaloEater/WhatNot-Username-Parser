@@ -23,7 +23,7 @@ GM_addStyle(`
     height: 75vh;
 }
 .mob-chat {
- position: absolute;
+ // position: absolute;
  max-height: 90% !important;
  top: 10% !important;
 }
@@ -35,23 +35,22 @@ GM_addStyle(`
 .mob-price {
  position: absolute;
  z-index: 999;
- right: 0.5%;
- top: 0.5%;
- height: '';
  background-color: black;
  padding: 1%;
 }
 .mob-price * {
- font-size: 25px !important;
+ font-size: 45px !important;
 }
 .mob-price-child {
+ top: -20px;
+ position:relative;
 }
 .bottom-container {
  background-color: rgba(0, 0, 0, 0);
  height: 100% !important;
 }
 .mob-chat:first-child {
- height: 100% !important;
+ height: 83% !important;
  background: '';
 }
 .mob-last-buyer-container > div:first-of-type {
@@ -67,10 +66,16 @@ GM_addStyle(`
  justify-content: end !important;
 }
 .mob-online {
-font-size: 25px
+ font-size: 25px;
  position: absolute;
  left: 2%;
  top: 2%;
+ display: flex;
+ align-items: center;
+ gap: 10px;
+}
+.mob-online-icon {
+ width: 45px !important;
 }
 `);
 
@@ -467,11 +472,12 @@ font-size: 25px
 
         dButton.addEventListener('click', async () => {
             const rootElement = document.body;
-            const chatWindow = document.querySelector('div[data-testid="virtuoso-item-list"]')
-            let footer = document.querySelector('footer[class*="livePlayerFooter"]')
-            chatWindow.classList.add('mob-chat')
-            let chatWindowParent = chatWindow.parentNode
-            chatWindowParent.classList.add('mob-chat-parent')
+            const chatContainer = document.querySelector('#bottom-section-stream-container > div > div > div:nth-child(1)')
+            chatContainer.classList.add('mob-chat')
+            let chatContainerParent = chatContainer.parentNode
+            chatContainerParent.classList.add('mob-chat-parent')
+
+            const chatWindow = document.querySelector('#bottom-section-stream-container > div > div > div.mob-chat > div:nth-child(1) > div:nth-child(3)')
 
             function autoScrollToBottom(element) {
                 // Create a mutation observer to watch for changes
@@ -493,34 +499,38 @@ font-size: 25px
                 return observer; // Return observer so it can be disconnected later if needed
             }
 
-            let virtuosoList = chatWindowParent.parentNode
-            if (virtuosoList) {
-                const currentValue = virtuosoList.getAttribute('data-overlayscrollbars-viewport');
+            const scrollViewport = chatWindow.querySelector('[data-overlayscrollbars-viewport]')
+            if (scrollViewport) {
+                const currentValue = scrollViewport.getAttribute('data-overlayscrollbars-viewport');
                 if (currentValue) {
                     const updatedValue = currentValue.replace('scrollbarHidden', '').trim();
-                    virtuosoList.setAttribute('data-overlayscrollbars-viewport', updatedValue);
+                    scrollViewport.setAttribute('data-overlayscrollbars-viewport', updatedValue);
                 }
+                autoScrollToBottom(scrollViewport);
             }
-            autoScrollToBottom(virtuosoList);
 
-            footer.classList.add('bottom-container')
-            const mobileChat = document.querySelector('div[class*="livePlayerMobileChat"]')
-            mobileChat.classList.add('mob-mobile-chat')
+            const videoElement = document.querySelector('video')
 
             const targetElements = [
                 chatWindow,
-                document.querySelector('section[class*="livePlayerVideo"]'), //livestream
+                videoElement,
             ];
             console.log(targetElements);
 
-            const priceDiv = footer.querySelector('footer[class*="livePlayerFooter"] > section > :nth-child(2)')
-            targetElements.push(priceDiv)
+            const priceDiv = document.querySelector('#bottom-section-stream-container > div > div.mob-chat-parent > div:nth-child(2) > div:nth-child(2)')
+            if (priceDiv) {
+                targetElements.push(priceDiv)
+                Array.from(priceDiv.parentNode.children).forEach(sibling => {
+                    if (sibling !== priceDiv) sibling.style.display = 'none'
+                })
+            }
 
-            const header = document.querySelector('header[class*="livePlayerHeader"]')
-            const online = header.querySelector(':nth-child(3)');
-            targetElements.push(online)
+            const online = document.querySelector('#top-section-stream-container > div:nth-child(1) > div:nth-child(2) > div > div > div:nth-child(1)')
+            if (online) targetElements.push(online)
 
             removeNonRelatedNodes(rootElement, targetElements); // Call the function to remove non-related nodes
+
+            document.querySelector('#bottom-section-stream-container').style.height = '100%';
 
             var styleElement = document.createElement('style');
             styleElement.type = 'text/css';
@@ -537,16 +547,54 @@ font-size: 25px
                 });
             }
 
-            priceDiv.classList.add('mob-price')
+            if (online) {
+                online.classList.add('mob-online')
+                const onlineNumber = online.querySelector('div > div:nth-child(4)')
+                if (onlineNumber) onlineNumber.style.fontSize = '45px'
+                const onlineIcon = online.querySelector('div > div:nth-child(1)')
+                if (onlineIcon) {
+                    const iconFirstDiv = onlineIcon.querySelector('div')
+                    if (iconFirstDiv) iconFirstDiv.classList.add('mob-online-icon')
+                }
+            }
+            if (priceDiv) {
+                priceDiv.classList.add('mob-price')
+                priceDiv.style.width = ''
+                priceDiv.style.position = 'static'
+                priceDiv.style.right = ''
+                priceDiv.style.left = ''
+                priceDiv.style.top = ''
+                priceDiv.childNodes.forEach(i => {
+                    i.classList.add('mob-price-child')
+                })
+                if (online) online.appendChild(priceDiv)
+            }
 
-            priceDiv.childNodes.forEach(i => {
-                i.classList.add('mob-price-child')
-            })
-            // Call the function to update styles for all nested children
-            updateNestedStyles(priceDiv, 'font-size', '35px');
-            updateNestedStyles(priceDiv, 'line-height', '');
-            footer.classList.add('mob-last-buyer-container')
-            online.classList.add('mob-online')
+            const lastBuyerDiv = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)')
+            if (lastBuyerDiv) {
+                lastBuyerDiv.style.position = 'fixed'
+                lastBuyerDiv.style.left = '2%'
+                lastBuyerDiv.style.zIndex = '999'
+                updateNestedStyles(lastBuyerDiv, 'font-size', '45px')
+                document.body.appendChild(lastBuyerDiv)
+
+                function updateLastBuyerPosition() {
+                    const onlineRect = online ? online.getBoundingClientRect() : null
+                    if (onlineRect) {
+                        lastBuyerDiv.style.top = (onlineRect.bottom + 5) + 'px'
+                    }
+                }
+                updateLastBuyerPosition()
+                const lastBuyerPositionObserver = new MutationObserver(updateLastBuyerPosition)
+                if (online) {
+                    lastBuyerPositionObserver.observe(online, { childList: true, subtree: true, characterData: true })
+                }
+
+                const lastBuyerStyleObserver = new MutationObserver((mutationsList) => {
+                    updateNestedStyles(lastBuyerDiv, 'font-size', '45px')
+                })
+                lastBuyerStyleObserver.observe(lastBuyerDiv, { childList: true, subtree: true })
+            }
 
             parentNode.removeChild(parentDiv);
         });
