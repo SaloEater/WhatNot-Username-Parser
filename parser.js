@@ -28,7 +28,7 @@ GM_addStyle(`
  top: 10% !important;
 }
 .mob-chat > * > * > div {
- background-color: rgba(0, 0, 0, 0.75);
+ // background-color: rgba(0, 0, 0, 0.75);
     border-radius: 10px;
     padding: 2px; 
 }
@@ -50,7 +50,7 @@ GM_addStyle(`
  height: 100% !important;
 }
 .mob-chat:first-child {
- height: 83% !important;
+ height: 78% !important;
  background: '';
 }
 .mob-last-buyer-container > div:first-of-type {
@@ -68,7 +68,7 @@ GM_addStyle(`
 .mob-online {
  font-size: 25px;
  position: absolute;
- left: 2%;
+ right: 2%;
  top: 2%;
  display: flex;
  align-items: center;
@@ -560,8 +560,17 @@ GM_addStyle(`
             const lastBuyerDiv = document.querySelector('#bottom-section-stream-container > div > div:nth-child(1) > div:nth-child(1) > div:nth-child(3) > div:nth-child(1)')
             if (lastBuyerDiv) {
                 lastBuyerDiv.style.position = 'fixed'
-                lastBuyerDiv.style.left = '2%'
+                lastBuyerDiv.style.right = '2%'
                 lastBuyerDiv.style.zIndex = '999'
+                let firstDiv = lastBuyerDiv.childNodes[0]
+                firstDiv.style.flexDirection = 'row-reverse'
+                let firstDivChild = firstDiv.childNodes[0]
+                let logo = firstDivChild.childNodes[0]
+                logo.style.display = 'none'
+                let buyerName = firstDivChild.childNodes[1]
+                buyerName.style.color = 'white'
+                let lastBuyerStatus = firstDivChild.childNodes[2]
+                lastBuyerStatus.style.display = 'none'
                 updateNestedStyles(lastBuyerDiv, 'font-size', '45px')
                 document.body.appendChild(lastBuyerDiv)
 
@@ -578,6 +587,15 @@ GM_addStyle(`
                 }
 
                 const lastBuyerStyleObserver = new MutationObserver((mutationsList) => {
+                    let firstDiv = mutationsList[0].addedNodes[0]
+                    firstDiv.style.flexDirection = 'row-reverse'
+                    let firstDivChild = firstDiv.childNodes[0]
+                    let logo = firstDivChild.childNodes[0]
+                    logo.style.display = 'none'
+                    let buyerName = firstDivChild.childNodes[1]
+                    buyerName.style.color = 'white'
+                    let lastBuyerStatus = firstDivChild.childNodes[2]
+                    lastBuyerStatus.style.display = 'none'
                     updateNestedStyles(lastBuyerDiv, 'font-size', '45px')
                 })
                 lastBuyerStyleObserver.observe(lastBuyerDiv, { childList: true, subtree: true })
