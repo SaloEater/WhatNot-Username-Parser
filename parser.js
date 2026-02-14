@@ -271,8 +271,8 @@ GM_addStyle(`
                                                     let entity = {customer: '?', price: 0, name: ''}
 
                                                     let wasSent = false
-                                                    if (divFlex.childNodes.length > 7) {
-                                                        let divColumn = divFlex.childNodes[4]
+                                                    if (divFlex.childNodes.length > 6) {
+                                                        let divColumn = divFlex.childNodes[2]
                                                         let p = divColumn.childNodes[2]
                                                         let span = p.childNodes[2]
                                                         let username = span.childNodes[0].wholeText
@@ -280,7 +280,7 @@ GM_addStyle(`
                                                         let productNameContainer = divFlex.childNodes[0]
                                                         let soldName = productNameContainer.innerText
                                                         console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
-                                                        if (soldName.toLowerCase().indexOf("giveaway") != -1) {
+                                                        if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
                                                             entity = {customer: username, price: 0, name: soldName}
                                                             let id = soldName.split('#')[1]
                                                             if (giveawayIds.has(id)) {
@@ -289,7 +289,7 @@ GM_addStyle(`
                                                             giveawayIds.set(id, true)
                                                             console.log("parsed giveaway id is ", id)
                                                         } else {
-                                                            let priceParent = divFlex.childNodes[6]
+                                                            let priceParent = divFlex.childNodes[4]
                                                             let priceValue = priceParent.childNodes[0]
                                                             let price = parseInt(priceValue.wholeText.split('$')[1])
                                                             entity = {customer: username, price: price, name: soldName}
@@ -301,21 +301,8 @@ GM_addStyle(`
                                                             console.log("parsed team id is ", id)
                                                         }
                                                     } else {
-                                                        //let divDirColumn = divFlex.childNodes[2]
-                                                        let p = divFlex.childNodes[2]
-                                                        let span = p.childNodes[2]
-                                                        let usernameContainer = span.childNodes[0]
-                                                        let username = usernameContainer.childNodes[0].wholeText
-
-                                                        let productNameContainer = divFlex.childNodes[0]
-
-                                                        entity = {customer: username, price: 0, name: productNameContainer.innerText}
-                                                        let id = productNameContainer.innerText.split('#')[1]
-                                                        if (giveawayIds.has(id)) {
-                                                            wasSent = true
-                                                        }
-                                                        giveawayIds.set(id, true)
-                                                        console.log("parsed giveaway id is ", id)
+                                                        console.log(["skip, invalid node", divFlex])
+                                                        return;
                                                     }
 
                                                     if (wasSent) {
