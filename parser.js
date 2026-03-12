@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.021
+// @version      2024-03-24.022
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -272,34 +272,42 @@ GM_addStyle(`
 
                                                     let wasSent = false
                                                     if (divFlex.childNodes.length > 6) {
-                                                        let divColumn = divFlex.childNodes[2]
-                                                        let p = divColumn.childNodes[2]
-                                                        let span = p.childNodes[2]
-                                                        let username = span.childNodes[0].wholeText
+                                                       let content = divFlex.textContent
+                                                       console.log("content is ", content)
 
-                                                        let productNameContainer = divFlex.childNodes[0]
-                                                        let soldName = productNameContainer.innerText
-                                                        console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
-                                                        if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
-                                                            entity = {customer: username, price: 0, name: soldName}
-                                                            let id = soldName.split('#')[1]
-                                                            if (giveawayIds.has(id)) {
-                                                                wasSent = true
-                                                            }
-                                                            giveawayIds.set(id, true)
-                                                            console.log("parsed giveaway id is ", id)
-                                                        } else {
-                                                            let priceParent = divFlex.childNodes[4]
-                                                            let priceValue = priceParent.childNodes[0]
-                                                            let price = parseInt(priceValue.wholeText.split('$')[1])
-                                                            entity = {customer: username, price: price, name: soldName}
-                                                            let id = soldName.split('#')[1]
-                                                            if (teamIds.has(id)) {
-                                                                wasSent = true
-                                                            }
-                                                            teamIds.set(id, true)
-                                                            console.log("parsed team id is ", id)
-                                                        }
+                                                       if (content.indexOf("Pending") !== -1) {
+                                                           console.log("content contains Pending, skipping", content)
+                                                           return
+                                                       }
+
+                                                       let contentMatch = content.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
+                                                       if (!contentMatch) {
+                                                           console.log("failed to parse content", content)
+                                                           return
+                                                       }
+
+                                                       let soldName = contentMatch[1].trim()
+                                                       let username = contentMatch[2].trim()
+                                                       let price = parseInt(contentMatch[3])
+
+                                                       console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
+                                                       if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
+                                                           entity = {customer: username, price: 0, name: soldName}
+                                                           let id = soldName.split('#')[1]
+                                                           if (giveawayIds.has(id)) {
+                                                               wasSent = true
+                                                           }
+                                                           giveawayIds.set(id, true)
+                                                           console.log("parsed giveaway id is ", id)
+                                                       } else {
+                                                           entity = {customer: username, price: price, name: soldName}
+                                                           let id = soldName.split('#')[1]
+                                                           if (teamIds.has(id)) {
+                                                               wasSent = true
+                                                           }
+                                                           teamIds.set(id, true)
+                                                           console.log("parsed team id is ", id)
+                                                       }
                                                     } else {
                                                         console.log(["skip, invalid node", divFlex])
                                                         return;
