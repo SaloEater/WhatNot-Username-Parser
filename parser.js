@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.022
+// @version      2024-03-24.023
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -280,6 +280,61 @@ GM_addStyle(`
                                                            return
                                                        }
 
+                                                       if (/randomizing/i.test(content)) {
+                                                           console.log("content contains Randomizing, showing In progress badge", content)
+                                                           sentElement.textContent = 'In progress'
+                                                           sentElement.style.backgroundColor = 'blue'
+                                                           sentElement.style.color = 'white'
+                                                           sentElement.style.padding = '5px'
+                                                           sentElement.style.borderRadius = '5px'
+                                                           divListingItem.appendChild(sentElement)
+
+                                                           const itemObserver = new MutationObserver(() => {
+                                                               try {
+                                                                   const updatedContent = divFlex.textContent
+                                                                   console.log("itemObserver tick, content:", updatedContent)
+                                                                   if (updatedContent.indexOf("Pending") !== -1 || /randomizing/i.test(updatedContent) || /^#\d+/.test(updatedContent.trim())) {
+                                                                       return
+                                                                   }
+                                                                   const match = updatedContent.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
+                                                                   if (!match) {
+                                                                       return
+                                                                   }
+                                                                   itemObserver.disconnect()
+                                                                   const resolvedName = match[1].trim()
+                                                                   const resolvedUser = match[2].trim()
+                                                                   const resolvedPrice = parseInt(match[3])
+                                                                   let resolvedEntity
+                                                                   let resolvedWasSent = false
+                                                                   if (resolvedName.toLowerCase().indexOf("giveaway") !== -1) {
+                                                                       resolvedEntity = {customer: resolvedUser, price: 0, name: resolvedName}
+                                                                       const id = resolvedName.split('#')[1] || resolvedName
+                                                                       if (giveawayIds.has(id)) { resolvedWasSent = true }
+                                                                       giveawayIds.set(id, true)
+                                                                   } else {
+                                                                       resolvedEntity = {customer: resolvedUser, price: resolvedPrice, name: resolvedName}
+                                                                       const id = resolvedName.split('#')[1] || resolvedName
+                                                                       if (teamIds.has(id)) { resolvedWasSent = true }
+                                                                       teamIds.set(id, true)
+                                                                   }
+                                                                   if (resolvedWasSent) {
+                                                                       sentElement.textContent = 'Already added'
+                                                                       sentElement.style.backgroundColor = 'red'
+                                                                       console.log("skip, already added (resolved)", resolvedEntity.name)
+                                                                   } else {
+                                                                       sentElement.textContent = 'Sent'
+                                                                       sentElement.style.backgroundColor = 'green'
+                                                                       console.log('setting entity (resolved) to ', resolvedEntity)
+                                                                       GM_setValue('newEvent', resolvedEntity)
+                                                                   }
+                                                               } catch (e) {
+                                                                   console.log('itemObserver error:', e)
+                                                               }
+                                                           })
+                                                           itemObserver.observe(divItem, {childList: true, subtree: true, characterData: true})
+                                                           return
+                                                       }
+
                                                        let contentMatch = content.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
                                                        if (!contentMatch) {
                                                            console.log("failed to parse content", content)
@@ -293,7 +348,7 @@ GM_addStyle(`
                                                        console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
                                                        if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
                                                            entity = {customer: username, price: 0, name: soldName}
-                                                           let id = soldName.split('#')[1]
+                                                           let id = soldName.split('#')[1] || soldName
                                                            if (giveawayIds.has(id)) {
                                                                wasSent = true
                                                            }
@@ -301,7 +356,7 @@ GM_addStyle(`
                                                            console.log("parsed giveaway id is ", id)
                                                        } else {
                                                            entity = {customer: username, price: price, name: soldName}
-                                                           let id = soldName.split('#')[1]
+                                                           let id = soldName.split('#')[1] || soldName
                                                            if (teamIds.has(id)) {
                                                                wasSent = true
                                                            }
@@ -320,8 +375,8 @@ GM_addStyle(`
                                                         // Set the styles
                                                         sentElement.style.backgroundColor = 'red';
                                                         sentElement.style.color = 'white';
-                                                        sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
-                                                        sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+                                                        sentElement.style.padding = '5px';
+                                                        sentElement.style.borderRadius = '5px';
 
                                                         // Append the new element to the existing element
                                                         divListingItem.appendChild(sentElement);
@@ -334,8 +389,8 @@ GM_addStyle(`
                                                         // Set the styles
                                                         sentElement.style.backgroundColor = 'green';
                                                         sentElement.style.color = 'white';
-                                                        sentElement.style.padding = '5px'; // Optional: Add padding for better appearance
-                                                        sentElement.style.borderRadius = '5px'; // Optional: Add rounded corners for better appearance
+                                                        sentElement.style.padding = '5px';
+                                                        sentElement.style.borderRadius = '5px';
 
                                                         // Append the new element to the existing element
                                                         divListingItem.appendChild(sentElement);
