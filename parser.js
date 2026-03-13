@@ -467,17 +467,21 @@ GM_addStyle(`
 
         // Create a new div for the quantity tool
         var parentDiv = document.createElement('div');
-        parentDiv.style.border = '1px solid black'; // Add border
+        // parentDiv.style.border = '1px solid black'; // Add border
         parentDiv.style.padding = '10px'; // Add padding for spacing
 
         // Create a button
         const dButton = document.createElement('button');
         dButton.textContent = 'Turn On';
+        dButton.addEventListener('mouseenter', () => { !dButton.disabled && (dButton.style.color = 'white') })
+        dButton.addEventListener('mouseleave', () => { !dButton.disabled && (dButton.style.color = '') })
         parentDiv.appendChild(dButton);
 
         dButton.addEventListener('click', async () => {
             dButton.disabled = true
             dButton.textContent = 'Is active';
+            dButton.style.backgroundColor = 'red'
+            dButton.style.color = 'white'
             start()
         })
 
@@ -737,8 +741,8 @@ GM_addStyle(`
                 rememberedEntriesDiv = null;
             }
 
-            const entriesDiv = rememberedEntriesDiv || Array.from(document.querySelectorAll('div')).find(div => /^\d+ entries$/.test(div.textContent));
-            console.log('Checking for entries div:', entriesDiv);
+            const entriesDiv = rememberedEntriesDiv || Array.from(document.querySelectorAll('div')).find(div => /^\d+Entries$/.test(div.textContent));
+            // console.log('Checking for entries div:', entriesDiv);
 
             if (entriesDiv) {
                 if (!foundEntries) {
@@ -752,7 +756,7 @@ GM_addStyle(`
                 foundEntries = false;
                 rememberedEntriesDiv = null;
             } else {
-                console.log('Entries div not found.');
+                // console.log('Entries div not found.');
             }
 
             isCheckingEntries = false;
