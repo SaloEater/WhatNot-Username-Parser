@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.023
+// @version      2024-03-24.024
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -225,46 +225,55 @@ GM_addStyle(`
                     function mouseHandler() {
                         clearInterval(id)
                         const observer = new MutationObserver(mutationsList => {
-                            console.log(['mut list', mutationsList])
+                            const sid = Math.random().toString(36).slice(2, 7)
+                            const log = (...args) => console.log(`[${sid}]`, ...args)
+                            log.sid = sid
+                            log('mut list', mutationsList)
                             // Loop through each mutation in the mutationsList
                             for (let mutation of mutationsList) {
                                 // Check if nodes were added
                                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                                    console.log(['muts', mutation])
+                                    log('muts', mutation)
                                     // Process the added nodes
                                     mutation.addedNodes.forEach(addedNode => {
+                                        const sid = log.sid + '.' + Math.random().toString(36).slice(2, 7)
                                         try {
+                                            const log = (...args) => console.log(`[${sid}]`, ...args)
+                                            log.sid = sid
                                             let divItem = addedNode
                                             let attributes = divItem.attributes
                                             let index = attributes.getNamedItem('data-index')
                                             let isParsed = addedNode.getAttribute('data-parsed');
-                                            console.log(['new added node', addedNode, index])
+                                            log('new added node', addedNode, index)
                                             if (isParsed) {
-                                                console.log('parsed already')
+                                                log('parsed already')
                                                 return
                                             }
                                             addedNode.setAttribute('data-parsed', 'true');
-                                            console.log(['parsing', addedNode])
+                                            log('parsing', addedNode)
                                             setTimeout(() => {
+                                                const sid = log.sid + '.' + Math.random().toString(36).slice(2, 7)
                                                 try {
+                                                    const log = (...args) => console.log(`[${sid}]`, ...args)
+                                                    log.sid = sid
                                                     const sentElement = document.createElement('div');
                                                     if (divItem.childNodes.length <= 0) {
-                                                        console.log('wrong node 1', divItem)
+                                                        log('wrong node 1', divItem)
                                                         return
                                                     }
                                                     let divListingItem = divItem.childNodes[0]
                                                     if (divListingItem.childNodes.length <= 0) {
-                                                        console.log('wrong node 2', divListingItem)
+                                                        log('wrong node 2', divListingItem)
                                                         return
                                                     }
                                                     let divDisplayFlex = divListingItem.childNodes[0]
                                                     if (divDisplayFlex.childNodes.length <= 0) {
-                                                        console.log('wrong node 3', divDisplayFlex)
+                                                        log('wrong node 3', divDisplayFlex)
                                                         return
                                                     }
                                                     let divFlex = divDisplayFlex.childNodes[1]
                                                     if (divFlex.childNodes.length <= 0) {
-                                                        console.log('wrong node 4', divFlex)
+                                                        log('wrong node 4', divFlex)
                                                         return
                                                     }
 
@@ -273,71 +282,16 @@ GM_addStyle(`
                                                     let wasSent = false
                                                     if (divFlex.childNodes.length > 6) {
                                                        let content = divFlex.textContent
-                                                       console.log("content is ", content)
+                                                       log("content is", content)
 
                                                        if (content.indexOf("Pending") !== -1) {
-                                                           console.log("content contains Pending, skipping", content)
-                                                           return
-                                                       }
-
-                                                       if (/randomizing/i.test(content)) {
-                                                           console.log("content contains Randomizing, showing In progress badge", content)
-                                                           sentElement.textContent = 'In progress'
-                                                           sentElement.style.backgroundColor = 'blue'
-                                                           sentElement.style.color = 'white'
-                                                           sentElement.style.padding = '5px'
-                                                           sentElement.style.borderRadius = '5px'
-                                                           divListingItem.appendChild(sentElement)
-
-                                                           const itemObserver = new MutationObserver(() => {
-                                                               try {
-                                                                   const updatedContent = divFlex.textContent
-                                                                   console.log("itemObserver tick, content:", updatedContent)
-                                                                   if (updatedContent.indexOf("Pending") !== -1 || /randomizing/i.test(updatedContent) || /^#\d+/.test(updatedContent.trim())) {
-                                                                       return
-                                                                   }
-                                                                   const match = updatedContent.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
-                                                                   if (!match) {
-                                                                       return
-                                                                   }
-                                                                   itemObserver.disconnect()
-                                                                   const resolvedName = match[1].trim()
-                                                                   const resolvedUser = match[2].trim()
-                                                                   const resolvedPrice = parseInt(match[3])
-                                                                   let resolvedEntity
-                                                                   let resolvedWasSent = false
-                                                                   if (resolvedName.toLowerCase().indexOf("giveaway") !== -1) {
-                                                                       resolvedEntity = {customer: resolvedUser, price: 0, name: resolvedName}
-                                                                       const id = resolvedName.split('#')[1] || resolvedName
-                                                                       if (giveawayIds.has(id)) { resolvedWasSent = true }
-                                                                       giveawayIds.set(id, true)
-                                                                   } else {
-                                                                       resolvedEntity = {customer: resolvedUser, price: resolvedPrice, name: resolvedName}
-                                                                       const id = resolvedName.split('#')[1] || resolvedName
-                                                                       if (teamIds.has(id)) { resolvedWasSent = true }
-                                                                       teamIds.set(id, true)
-                                                                   }
-                                                                   if (resolvedWasSent) {
-                                                                       sentElement.textContent = 'Already added'
-                                                                       sentElement.style.backgroundColor = 'red'
-                                                                       console.log("skip, already added (resolved)", resolvedEntity.name)
-                                                                   } else {
-                                                                       sentElement.textContent = 'Sent'
-                                                                       sentElement.style.backgroundColor = 'green'
-                                                                       console.log('setting entity (resolved) to ', resolvedEntity)
-                                                                       GM_setValue('newEvent', resolvedEntity)
-                                                                   }
-                                                               } catch (e) {
-                                                                   console.log('itemObserver error:', e)
-                                                               }
-                                                           })
-                                                           itemObserver.observe(divItem, {childList: true, subtree: true, characterData: true})
+                                                           log("content contains Pending, skipping", content)
                                                            return
                                                        }
 
                                                        let contentMatch = content.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
                                                        if (!contentMatch) {
-                                                           console.log("failed to parse content", content)
+                                                           log("failed to parse content", content)
                                                            return
                                                        }
 
@@ -345,7 +299,7 @@ GM_addStyle(`
                                                        let username = contentMatch[2].trim()
                                                        let price = parseInt(contentMatch[3])
 
-                                                       console.log("found name", soldName, ", ", soldName.toLowerCase().indexOf("giveaway"), ", is givy: ", soldName.toLowerCase().indexOf("giveaway") != -1)
+                                                       log("found name", soldName, ", is givy:", soldName.toLowerCase().indexOf("giveaway") != -1)
                                                        if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
                                                            entity = {customer: username, price: 0, name: soldName}
                                                            let id = soldName.split('#')[1] || soldName
@@ -353,7 +307,7 @@ GM_addStyle(`
                                                                wasSent = true
                                                            }
                                                            giveawayIds.set(id, true)
-                                                           console.log("parsed giveaway id is ", id)
+                                                           log("parsed giveaway id is", id)
                                                        } else {
                                                            entity = {customer: username, price: price, name: soldName}
                                                            let id = soldName.split('#')[1] || soldName
@@ -361,10 +315,10 @@ GM_addStyle(`
                                                                wasSent = true
                                                            }
                                                            teamIds.set(id, true)
-                                                           console.log("parsed team id is ", id)
+                                                           log("parsed team id is", id)
                                                        }
                                                     } else {
-                                                        console.log(["skip, invalid node", divFlex])
+                                                        log("skip, invalid node", divFlex)
                                                         return;
                                                     }
 
@@ -380,7 +334,7 @@ GM_addStyle(`
 
                                                         // Append the new element to the existing element
                                                         divListingItem.appendChild(sentElement);
-                                                        console.log("skip, already added", entity.name)
+                                                        log("skip, already added", entity.name)
                                                         return
                                                     } else {
                                                         // Set the text content
@@ -394,16 +348,16 @@ GM_addStyle(`
 
                                                         // Append the new element to the existing element
                                                         divListingItem.appendChild(sentElement);
-                                                        console.log('setting entity to ', entity)
-                                                        console.log('old value was ', GM_getValue('newEvent'))
+                                                        log('setting entity to', entity)
+                                                        log('old value was', GM_getValue('newEvent'))
                                                         GM_setValue('newEvent', entity)
                                                     }
                                                 } catch (e) {
-                                                    console.log('element is preparing: ', e)
+                                                    log('element is preparing:', e)
                                                 }
                                             }, 2000)
                                         } catch(e) {
-                                            console.log('an error occured: ', e)
+                                            log('an error occured:', e)
                                         }
                                     });
                                 }
