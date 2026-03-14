@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.024
+// @version      2024-03-24.024b1
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -224,6 +224,7 @@ GM_addStyle(`
 
                     function mouseHandler() {
                         clearInterval(id)
+                        let latestScheduleTime = 0
                         const observer = new MutationObserver(mutationsList => {
                             const sid = Math.random().toString(36).slice(2, 7)
                             const log = (...args) => console.log(`[${sid}]`, ...args)
@@ -251,11 +252,17 @@ GM_addStyle(`
                                             }
                                             addedNode.setAttribute('data-parsed', 'true');
                                             log('parsing', addedNode)
+                                            const myTime = Date.now()
+                                            latestScheduleTime = myTime
                                             setTimeout(() => {
                                                 const sid = log.sid + '.' + Math.random().toString(36).slice(2, 7)
                                                 try {
                                                     const log = (...args) => console.log(`[${sid}]`, ...args)
                                                     log.sid = sid
+                                                    if (myTime < latestScheduleTime) {
+                                                        log('stale timeout blocked, scheduled at', myTime, 'latest is', latestScheduleTime)
+                                                        return
+                                                    }
                                                     const sentElement = document.createElement('div');
                                                     if (divItem.childNodes.length <= 0) {
                                                         log('wrong node 1', divItem)
