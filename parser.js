@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.024b1
+// @version      2024-03-24.025
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -225,6 +225,7 @@ GM_addStyle(`
                     function mouseHandler() {
                         clearInterval(id)
                         let latestScheduleTime = 0
+                        const processedSoldNames = new Set()
                         const observer = new MutationObserver(mutationsList => {
                             const sid = Math.random().toString(36).slice(2, 7)
                             const log = (...args) => console.log(`[${sid}]`, ...args)
@@ -305,6 +306,19 @@ GM_addStyle(`
                                                        let soldName = contentMatch[1].trim()
                                                        let username = contentMatch[2].trim()
                                                        let price = parseInt(contentMatch[3])
+
+                                                       if (processedSoldNames.has(soldName)) {
+                                                           log('already processed soldName, skipping', soldName)
+                                                           const dupElement = document.createElement('div');
+                                                           dupElement.textContent = 'Duplicate detected';
+                                                           dupElement.style.backgroundColor = 'blue';
+                                                           dupElement.style.color = 'white';
+                                                           dupElement.style.padding = '5px';
+                                                           dupElement.style.borderRadius = '5px';
+                                                           divListingItem.appendChild(dupElement);
+                                                           return
+                                                       }
+                                                       processedSoldNames.add(soldName)
 
                                                        log("found name", soldName, ", is givy:", soldName.toLowerCase().indexOf("giveaway") != -1)
                                                        if (soldName.toLowerCase().indexOf("giveaway") !== -1) {
