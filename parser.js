@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.025
+// @version      2024-03-24.026
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -226,6 +226,112 @@ GM_addStyle(`
                         clearInterval(id)
                         let latestScheduleTime = 0
                         const processedSoldNames = new Set()
+                        const perItemObservers = new Map()
+
+                        function setupRandomizingObserver(divItem, divListingItem, log) {
+                            if (perItemObservers.has(divItem)) {
+                                log('per-item observer already set up for this node')
+                                return
+                            }
+
+                            const randomizingBadge = document.createElement('div')
+                            randomizingBadge.textContent = 'Randomizing...'
+                            randomizingBadge.style.backgroundColor = 'orange'
+                            randomizingBadge.style.color = 'white'
+                            randomizingBadge.style.padding = '5px'
+                            randomizingBadge.style.borderRadius = '5px'
+                            divListingItem.appendChild(randomizingBadge)
+
+                            function cleanup() {
+                                itemObserver.disconnect()
+                                clearTimeout(safetyTimeout)
+                                perItemObservers.delete(divItem)
+                            }
+
+                            const safetyTimeout = setTimeout(() => {
+                                log('per-item observer safety timeout reached, disconnecting')
+                                cleanup()
+                            }, 60000)
+
+                            const itemObserver = new MutationObserver(() => {
+                                try {
+                                    if (divItem.childNodes.length <= 0) return
+                                    const dli = divItem.childNodes[0]
+                                    if (dli.childNodes.length <= 0) return
+                                    const ddf = dli.childNodes[0]
+                                    if (ddf.childNodes.length <= 0) return
+                                    const df = ddf.childNodes[1]
+                                    if (!df || df.childNodes.length <= 6) return
+
+                                    const content = df.textContent
+                                    if (/randomizing/i.test(content) || content.indexOf('Pending') !== -1) return
+
+                                    const contentMatch = content.match(/^(.+?)Qty:\s*\d+Buyer:\s*(.+?)Sold for \$(\d+)/)
+                                    if (!contentMatch) return
+
+                                    const soldName = contentMatch[1].trim()
+                                    const username = contentMatch[2].trim()
+                                    const price = parseInt(contentMatch[3])
+
+                                    cleanup()
+                                    randomizingBadge.remove()
+
+                                    if (processedSoldNames.has(soldName)) {
+                                        log('per-item observer: duplicate soldName', soldName)
+                                        const dupElement = document.createElement('div')
+                                        dupElement.textContent = 'Duplicate detected'
+                                        dupElement.style.backgroundColor = 'orange'
+                                        dupElement.style.color = 'white'
+                                        dupElement.style.padding = '5px'
+                                        dupElement.style.borderRadius = '5px'
+                                        divListingItem.appendChild(dupElement)
+                                        return
+                                    }
+                                    processedSoldNames.add(soldName)
+
+                                    let entity
+                                    let wasSent = false
+                                    if (soldName.toLowerCase().indexOf('giveaway') !== -1) {
+                                        entity = { customer: username, price: 0, name: soldName }
+                                        const id = soldName.split('#')[1] || soldName
+                                        if (giveawayIds.has(id)) wasSent = true
+                                        giveawayIds.set(id, true)
+                                        log('per-item observer: parsed giveaway id', id)
+                                    } else {
+                                        entity = { customer: username, price: price, name: soldName }
+                                        const id = soldName.split('#')[1] || soldName
+                                        if (teamIds.has(id)) wasSent = true
+                                        teamIds.set(id, true)
+                                        log('per-item observer: parsed team id', id)
+                                    }
+
+                                    const badge = document.createElement('div')
+                                    badge.style.color = 'white'
+                                    badge.style.padding = '5px'
+                                    badge.style.borderRadius = '5px'
+
+                                    if (wasSent) {
+                                        badge.textContent = 'Already added'
+                                        badge.style.backgroundColor = 'red'
+                                        divListingItem.appendChild(badge)
+                                        log('per-item observer: skip, already added', entity.name)
+                                    } else {
+                                        badge.textContent = 'Sent'
+                                        badge.style.backgroundColor = 'green'
+                                        divListingItem.appendChild(badge)
+                                        log('per-item observer: setting entity to', entity)
+                                        GM_setValue('newEvent', entity)
+                                    }
+                                } catch(e) {
+                                    log('per-item observer error:', e)
+                                }
+                            })
+
+                            itemObserver.observe(divItem, { subtree: true, childList: true, characterData: true })
+                            perItemObservers.set(divItem, cleanup)
+                            log('per-item observer set up for', divItem)
+                        }
+
                         const observer = new MutationObserver(mutationsList => {
                             const sid = Math.random().toString(36).slice(2, 7)
                             const log = (...args) => console.log(`[${sid}]`, ...args)
@@ -291,6 +397,12 @@ GM_addStyle(`
                                                     if (divFlex.childNodes.length > 6) {
                                                        let content = divFlex.textContent
                                                        log("content is", content)
+
+                                                       if (/randomizing/i.test(content)) {
+                                                           log('content is randomizing, setting up per-item observer')
+                                                           setupRandomizingObserver(divItem, divListingItem, log)
+                                                           return
+                                                       }
 
                                                        if (content.indexOf("Pending") !== -1) {
                                                            log("content contains Pending, skipping", content)
@@ -381,6 +493,14 @@ GM_addStyle(`
                                             log('an error occured:', e)
                                         }
                                     });
+                                }
+                                if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                                    mutation.removedNodes.forEach(removedNode => {
+                                        if (perItemObservers.has(removedNode)) {
+                                            perItemObservers.get(removedNode)()
+                                            log('disconnected per-item observer for removed node', removedNode)
+                                        }
+                                    })
                                 }
                             }
                         });
