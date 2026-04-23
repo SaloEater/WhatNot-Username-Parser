@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.027b1
+// @version      2024-03-24.027
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -651,6 +651,18 @@ GM_addStyle(`
         const processedListings = new Set()
         let isActive = false
         let eventCount = 0
+        let logEl = null  // set once UI is built
+
+        function uiLog(msg) {
+            console.log('[WS Parser]', msg)
+            if (!logEl) return
+            const line = document.createElement('div')
+            line.textContent = new Date().toLocaleTimeString() + ' |  ' + msg
+            line.style.borderBottom = '1px solid #333'
+            line.style.padding = '2px 0'
+            logEl.appendChild(line)
+            logEl.scrollTop = logEl.scrollHeight
+        }
 
         const callbacks = new Map()
 
@@ -677,9 +689,15 @@ GM_addStyle(`
         on('auction_ended', payload => {
             const productId = payload?.product?.id
             if (!productId || processedListings.has(productId)) return
+            const listingId = payload?.product?.listingId
             processedListings.add(productId)
             const isBreakSpot = !!payload.product.isBreakSpot
-            console.log('[WS Parser] auction_ended, isBreakSpot:', isBreakSpot, 'product', productId)
+            const name = payload?.product?.name
+            if (isBreakSpot) {
+                uiLog('Break auction ' + name + 'just ended with id ' + listingId)
+            } else {
+                uiLog('Auction ' + name + 'just ended with id ' + listingId)
+            }
 
             function onAuctionPayment(pmPayload) {
                 if (pmPayload?.product?.id !== productId) return
@@ -692,14 +710,14 @@ GM_addStyle(`
                         price,
                         name: payload.product.name
                     }
-                    console.log('[WS Parser] regular auction confirmed, sending entity', entity)
+                    uiLog('Sold auction "' + entity.name + '" to ' + entity.customer + ' for $' + entity.price)
                     eventCount++
                     GM_setValue('newEvent', entity)
                     return
                 }
 
                 const paymentListingId = pmPayload.product.listingId
-                console.log('[WS Parser] break auction confirmed, waiting for randomizer listing', paymentListingId)
+                uiLog('Payment confirmed for id ' + listingId + ', waiting for randomizer result')
 
                 function onRandomizerResult(rrPayload) {
                     if (String(rrPayload.listing_id) !== String(paymentListingId)) return
@@ -709,7 +727,7 @@ GM_addStyle(`
                         price,
                         name: rrPayload.result
                     }
-                    console.log('[WS Parser] randomizer result, sending entity', entity)
+                    uiLog('Sold break auction "' + entity.name + '" to ' + entity.customer + ' for $' + entity.price)
                     eventCount++
                     GM_setValue('newEvent', entity)
                 }
@@ -727,7 +745,7 @@ GM_addStyle(`
                 price: 0,
                 name: payload.product.name
             }
-            console.log('[WS Parser] giveaway_won, sending entity', entity)
+            uiLog('Given away a giveaway "' + entity.name + '" to ' + entity.customer)
             eventCount++
             GM_setValue('newEvent', entity)
         })
@@ -769,6 +787,19 @@ GM_addStyle(`
         setInterval(() => {
             eventCountLabel.textContent = 'Events sent: ' + eventCount
         }, 500)
+
+        logEl = document.createElement('div')
+        logEl.style.marginTop = '6px'
+        logEl.style.maxHeight = '200px'
+        logEl.style.overflowY = 'auto'
+        logEl.style.fontSize = '0.65em'
+        logEl.style.fontFamily = 'monospace'
+        logEl.style.backgroundColor = '#111'
+        logEl.style.color = '#ddd'
+        logEl.style.padding = '4px'
+        logEl.style.borderRadius = '4px'
+        logEl.style.minHeight = '40px'
+        parentDiv.appendChild(logEl)
 
         parentNode.appendChild(parentDiv)
     }
