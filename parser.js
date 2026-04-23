@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.027
+// @version      1.27.1
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -664,6 +664,33 @@ GM_addStyle(`
             logEl.scrollTop = logEl.scrollHeight
         }
 
+        const sendQueue = []
+        let queueInterval = null
+
+        function enqueue(entity) {
+            sendQueue.push(entity)
+            uiLog('queued "' + entity.name + '" [queue: ' + sendQueue.length + ']')
+            if (!queueInterval) {
+                queueInterval = setInterval(flushQueue, 300)
+            }
+        }
+
+        function flushQueue() {
+            if (sendQueue.length === 0) {
+                clearInterval(queueInterval)
+                queueInterval = null
+                return
+            }
+            if (GM_getValue('newEvent', null) !== null) {
+                uiLog('queue: slot busy, retrying [' + sendQueue.length + ' pending]')
+                return
+            }
+            const entity = sendQueue.shift()
+            GM_setValue('newEvent', entity)
+            eventCount++
+            uiLog('queue: sent "' + entity.name + '" [' + sendQueue.length + ' remaining]')
+        }
+
         const callbacks = new Map()
 
         function on(type, cb) {
@@ -711,8 +738,7 @@ GM_addStyle(`
                         name: payload.product.name
                     }
                     uiLog('Sold auction "' + entity.name + '" to ' + entity.customer + ' for $' + entity.price)
-                    eventCount++
-                    GM_setValue('newEvent', entity)
+                    enqueue(entity)
                     return
                 }
 
@@ -728,8 +754,7 @@ GM_addStyle(`
                         name: rrPayload.result
                     }
                     uiLog('Sold break auction "' + entity.name + '" to ' + entity.customer + ' for $' + entity.price)
-                    eventCount++
-                    GM_setValue('newEvent', entity)
+                    enqueue(entity)
                 }
                 on('randomizer_result_event', onRandomizerResult)
             }
@@ -746,8 +771,7 @@ GM_addStyle(`
                 name: payload.product.name
             }
             uiLog('Given away a giveaway "' + entity.name + '" to ' + entity.customer)
-            eventCount++
-            GM_setValue('newEvent', entity)
+            enqueue(entity)
         })
 
         // UI
