@@ -85,53 +85,62 @@ GM_addStyle(`
     const currentURL = document.URL.toString()
     console.log(currentURL)
 
-    // --- WebSocket interception (runs immediately so no connections are missed) ---
+    // --- WebSocket interception ---
+    // Must inject a <script> tag to patch WebSocket in the real page context,
+    // because Tampermonkey sandboxes the userscript window from the page window.
     const wsFrames = []
     let wsCapturing = false
-    let wsConnCount = 0
 
-    function bufToBase64(buf) {
-        let s = ''
-        const bytes = new Uint8Array(buf)
-        for (let i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i])
-        return btoa(s)
-    }
-
-    ;(function patchWebSocket() {
-        if (window.__wnParserWsPatched) return
-        window.__wnParserWsPatched = true
-
-        const NativeWS = window.WebSocket
-        function PatchedWebSocket(...args) {
-            const ws = new NativeWS(...args)
-            const connId = ++wsConnCount
-            const connUrl = args[0]
-            console.log('[WS Capture] new connection #' + connId + ':', connUrl)
-
-            ws.addEventListener('message', e => {
-                if (!wsCapturing) return
-                const raw = e.data
-                if (typeof raw === 'string') {
-                    wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'text', data: raw })
-                } else if (raw instanceof ArrayBuffer) {
-                    wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(raw) })
-                } else if (raw instanceof Blob) {
-                    const reader = new FileReader()
-                    reader.onload = () => wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(reader.result) })
-                    reader.readAsArrayBuffer(raw)
-                }
-            })
-
-            return ws
-        }
-        PatchedWebSocket.prototype = NativeWS.prototype
-        PatchedWebSocket.CONNECTING = NativeWS.CONNECTING
-        PatchedWebSocket.OPEN = NativeWS.OPEN
-        PatchedWebSocket.CLOSING = NativeWS.CLOSING
-        PatchedWebSocket.CLOSED = NativeWS.CLOSED
-        window.WebSocket = PatchedWebSocket
-        console.log('[WS Capture] WebSocket patched')
+    ;(function injectWsPatch() {
+        const script = document.createElement('script')
+        script.textContent = `(function() {
+            if (window.__wnParserWsPatched) return;
+            window.__wnParserWsPatched = true;
+            var wsConnCount = 0;
+            var NativeWS = window.WebSocket;
+            function bufToBase64(buf) {
+                var s = '', bytes = new Uint8Array(buf);
+                for (var i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i]);
+                return btoa(s);
+            }
+            function PatchedWebSocket() {
+                var ws = new (Function.prototype.bind.apply(NativeWS, [null].concat(Array.from(arguments))))();
+                var connId = ++wsConnCount;
+                var connUrl = arguments[0];
+                console.log('[WS Capture] new connection #' + connId + ':', connUrl);
+                ws.addEventListener('message', function(e) {
+                    var raw = e.data, frame;
+                    if (typeof raw === 'string') {
+                        frame = { connId: connId, connUrl: connUrl, ts: Date.now(), encoding: 'text', data: raw };
+                        window.dispatchEvent(new CustomEvent('__wnWsFrame', { detail: frame }));
+                    } else if (raw instanceof ArrayBuffer) {
+                        frame = { connId: connId, connUrl: connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(raw) };
+                        window.dispatchEvent(new CustomEvent('__wnWsFrame', { detail: frame }));
+                    } else if (raw instanceof Blob) {
+                        raw.arrayBuffer().then(function(buf) {
+                            frame = { connId: connId, connUrl: connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(buf) };
+                            window.dispatchEvent(new CustomEvent('__wnWsFrame', { detail: frame }));
+                        });
+                    }
+                });
+                return ws;
+            }
+            PatchedWebSocket.prototype = NativeWS.prototype;
+            PatchedWebSocket.CONNECTING = NativeWS.CONNECTING;
+            PatchedWebSocket.OPEN = NativeWS.OPEN;
+            PatchedWebSocket.CLOSING = NativeWS.CLOSING;
+            PatchedWebSocket.CLOSED = NativeWS.CLOSED;
+            window.WebSocket = PatchedWebSocket;
+            console.log('[WS Capture] WebSocket patched in page context');
+        })();`
+        document.documentElement.appendChild(script)
+        script.remove()
     })()
+
+    window.addEventListener('__wnWsFrame', e => {
+        if (!wsCapturing) return
+        wsFrames.push(e.detail)
+    })
 
     function getElementByXpath(path) {
         return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
@@ -171,6 +180,7 @@ GM_addStyle(`
         // Define tool options
         var toolOptions = [
             { name: 'Username Parser', tool: createUsernameParserTool },
+            { name: 'WS Parser', tool: createWSParserTool },
             { name: 'WS Capture', tool: createWSCaptureTool },
             { name: 'Chat Only', tool: createChatOnlyTool },
             { name: 'Notes', tool: createNotesTool},
@@ -637,6 +647,132 @@ GM_addStyle(`
         parentNode.appendChild(parentDiv)
     }
 
+    function createWSParserTool(parentNode) {
+        const processedListings = new Set()
+        let isActive = false
+        let eventCount = 0
+
+        const callbacks = new Map()
+
+        function on(type, cb) {
+            if (!callbacks.has(type)) callbacks.set(type, new Set())
+            callbacks.get(type).add(cb)
+        }
+
+        function off(type, cb) {
+            callbacks.get(type)?.delete(cb)
+        }
+
+        function onFrame(e) {
+            if (!isActive) return
+            let d
+            try { d = JSON.parse(e.detail.data) } catch(err) { return }
+            if (!Array.isArray(d) || d.length < 5) return
+            const type = d[3], payload = d[4]
+            callbacks.get(type)?.forEach(cb => cb(payload))
+        }
+
+        window.addEventListener('__wnWsFrame', onFrame)
+
+        on('auction_ended', payload => {
+            const productId = payload?.product?.id
+            if (!productId || processedListings.has(productId)) return
+            processedListings.add(productId)
+            const isBreakSpot = !!payload.product.isBreakSpot
+            console.log('[WS Parser] auction_ended, isBreakSpot:', isBreakSpot, 'product', productId)
+
+            function onAuctionPayment(pmPayload) {
+                if (pmPayload?.product?.id !== productId) return
+                off('payment_succeeded', onAuctionPayment)
+                const price = pmPayload.product.soldPrice.amount / 100
+
+                if (!isBreakSpot) {
+                    const entity = {
+                        customer: payload.product.purchaserUser.username,
+                        price,
+                        name: payload.product.name
+                    }
+                    console.log('[WS Parser] regular auction confirmed, sending entity', entity)
+                    eventCount++
+                    GM_setValue('newEvent', entity)
+                    return
+                }
+
+                const paymentListingId = pmPayload.product.listingId
+                console.log('[WS Parser] break auction confirmed, waiting for randomizer listing', paymentListingId)
+
+                function onRandomizerResult(rrPayload) {
+                    if (String(rrPayload.listing_id) !== String(paymentListingId)) return
+                    off('randomizer_result_event', onRandomizerResult)
+                    const entity = {
+                        customer: rrPayload.buyer_username,
+                        price,
+                        name: rrPayload.result
+                    }
+                    console.log('[WS Parser] randomizer result, sending entity', entity)
+                    eventCount++
+                    GM_setValue('newEvent', entity)
+                }
+                on('randomizer_result_event', onRandomizerResult)
+            }
+            on('payment_succeeded', onAuctionPayment)
+        })
+
+        on('giveaway_won', payload => {
+            const listingId = payload?.product?.listingId
+            if (!listingId || processedListings.has(listingId)) return
+            processedListings.add(listingId)
+            const entity = {
+                customer: payload.product.purchaserUser.username,
+                price: 0,
+                name: payload.product.name
+            }
+            console.log('[WS Parser] giveaway_won, sending entity', entity)
+            eventCount++
+            GM_setValue('newEvent', entity)
+        })
+
+        // UI
+        const parentDiv = document.createElement('div')
+        parentDiv.style.padding = '10px'
+        parentDiv.style.display = 'flex'
+        parentDiv.style.flexDirection = 'column'
+        parentDiv.style.gap = '6px'
+
+        const statusLabel = document.createElement('div')
+        statusLabel.textContent = 'Status: inactive'
+        statusLabel.style.fontSize = '0.75em'
+        parentDiv.appendChild(statusLabel)
+
+        const eventCountLabel = document.createElement('div')
+        eventCountLabel.textContent = 'Events sent: 0'
+        eventCountLabel.style.fontSize = '0.75em'
+        parentDiv.appendChild(eventCountLabel)
+
+        const startBtn = document.createElement('button')
+        startBtn.textContent = 'Start'
+        startBtn.style.backgroundColor = '#2196F3'
+        startBtn.style.color = 'white'
+        startBtn.style.border = 'none'
+        startBtn.style.padding = '4px 8px'
+        startBtn.style.borderRadius = '4px'
+        startBtn.style.cursor = 'pointer'
+        parentDiv.appendChild(startBtn)
+
+        startBtn.addEventListener('click', () => {
+            isActive = !isActive
+            startBtn.textContent = isActive ? 'Stop' : 'Start'
+            startBtn.style.backgroundColor = isActive ? '#f44336' : '#2196F3'
+            statusLabel.textContent = 'Status: ' + (isActive ? 'active' : 'inactive')
+        })
+
+        setInterval(() => {
+            eventCountLabel.textContent = 'Events sent: ' + eventCount
+        }, 500)
+
+        parentNode.appendChild(parentDiv)
+    }
+
     function createWSCaptureTool(parentNode) {
         const parentDiv = document.createElement('div')
         parentDiv.style.padding = '10px'
@@ -655,7 +791,7 @@ GM_addStyle(`
         parentDiv.appendChild(frameCountLabel)
 
         const connLabel = document.createElement('div')
-        connLabel.textContent = 'Connections: ' + wsConnCount
+        connLabel.textContent = 'Connections: 0'
         connLabel.style.fontSize = '0.75em'
         parentDiv.appendChild(connLabel)
 
@@ -704,7 +840,8 @@ GM_addStyle(`
 
         setInterval(() => {
             frameCountLabel.textContent = 'Frames: ' + wsFrames.length
-            connLabel.textContent = 'Connections: ' + wsConnCount
+            const knownConns = new Set(wsFrames.map(f => f.connId))
+            connLabel.textContent = 'Connections seen: ' + knownConns.size
         }, 500)
 
         parentNode.appendChild(parentDiv)
