@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      2024-03-24.026
+// @version      2024-03-24.027b1
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -13,7 +13,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @grant       GM_addStyle
-// @run-at document-idle
+// @run-at document-start
 // @downloadURL https://update.greasyfork.org/scripts/493638/WhatNot%20Username%20Parser.user.js
 // @updateURL https://update.greasyfork.org/scripts/493638/WhatNot%20Username%20Parser.meta.js
 // ==/UserScript==
@@ -85,6 +85,54 @@ GM_addStyle(`
     const currentURL = document.URL.toString()
     console.log(currentURL)
 
+    // --- WebSocket interception (runs immediately so no connections are missed) ---
+    const wsFrames = []
+    let wsCapturing = false
+    let wsConnCount = 0
+
+    function bufToBase64(buf) {
+        let s = ''
+        const bytes = new Uint8Array(buf)
+        for (let i = 0; i < bytes.byteLength; i++) s += String.fromCharCode(bytes[i])
+        return btoa(s)
+    }
+
+    ;(function patchWebSocket() {
+        if (window.__wnParserWsPatched) return
+        window.__wnParserWsPatched = true
+
+        const NativeWS = window.WebSocket
+        function PatchedWebSocket(...args) {
+            const ws = new NativeWS(...args)
+            const connId = ++wsConnCount
+            const connUrl = args[0]
+            console.log('[WS Capture] new connection #' + connId + ':', connUrl)
+
+            ws.addEventListener('message', e => {
+                if (!wsCapturing) return
+                const raw = e.data
+                if (typeof raw === 'string') {
+                    wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'text', data: raw })
+                } else if (raw instanceof ArrayBuffer) {
+                    wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(raw) })
+                } else if (raw instanceof Blob) {
+                    const reader = new FileReader()
+                    reader.onload = () => wsFrames.push({ connId, connUrl, ts: Date.now(), encoding: 'base64', data: bufToBase64(reader.result) })
+                    reader.readAsArrayBuffer(raw)
+                }
+            })
+
+            return ws
+        }
+        PatchedWebSocket.prototype = NativeWS.prototype
+        PatchedWebSocket.CONNECTING = NativeWS.CONNECTING
+        PatchedWebSocket.OPEN = NativeWS.OPEN
+        PatchedWebSocket.CLOSING = NativeWS.CLOSING
+        PatchedWebSocket.CLOSED = NativeWS.CLOSED
+        window.WebSocket = PatchedWebSocket
+        console.log('[WS Capture] WebSocket patched')
+    })()
+
     function getElementByXpath(path) {
         return document.evaluate(path, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
     }
@@ -102,8 +150,6 @@ GM_addStyle(`
         document.body.appendChild(parentNode);
         return parentNode
     }
-
-    let toolsNode = createToolsNode()
 
     // Add a dropdown list for selecting tools
     function createToolSelector(parentNode) {
@@ -125,6 +171,7 @@ GM_addStyle(`
         // Define tool options
         var toolOptions = [
             { name: 'Username Parser', tool: createUsernameParserTool },
+            { name: 'WS Capture', tool: createWSCaptureTool },
             { name: 'Chat Only', tool: createChatOnlyTool },
             { name: 'Notes', tool: createNotesTool},
             { name: 'Giveaway Alarm', tool: createGiveawayAlarmTool}
@@ -154,8 +201,15 @@ GM_addStyle(`
         toolOptions[0].tool(toolContainer);
     }
 
-    // Call createToolSelector to add the dropdown list
-    createToolSelector(toolsNode);
+    function initUI() {
+        let toolsNode = createToolsNode()
+        createToolSelector(toolsNode)
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initUI)
+    } else {
+        initUI()
+    }
 
     function createUsernameParserTool(parentNode) {
         function start() {
@@ -579,6 +633,79 @@ GM_addStyle(`
             dButton.style.color = 'white'
             start()
         })
+
+        parentNode.appendChild(parentDiv)
+    }
+
+    function createWSCaptureTool(parentNode) {
+        const parentDiv = document.createElement('div')
+        parentDiv.style.padding = '10px'
+        parentDiv.style.display = 'flex'
+        parentDiv.style.flexDirection = 'column'
+        parentDiv.style.gap = '6px'
+
+        const statusLabel = document.createElement('div')
+        statusLabel.textContent = 'Status: idle'
+        statusLabel.style.fontSize = '0.75em'
+        parentDiv.appendChild(statusLabel)
+
+        const frameCountLabel = document.createElement('div')
+        frameCountLabel.textContent = 'Frames: 0'
+        frameCountLabel.style.fontSize = '0.75em'
+        parentDiv.appendChild(frameCountLabel)
+
+        const connLabel = document.createElement('div')
+        connLabel.textContent = 'Connections: ' + wsConnCount
+        connLabel.style.fontSize = '0.75em'
+        parentDiv.appendChild(connLabel)
+
+        function makeButton(text, color) {
+            const btn = document.createElement('button')
+            btn.textContent = text
+            btn.style.backgroundColor = color
+            btn.style.color = 'white'
+            btn.style.border = 'none'
+            btn.style.padding = '4px 8px'
+            btn.style.borderRadius = '4px'
+            btn.style.cursor = 'pointer'
+            return btn
+        }
+
+        const startBtn = makeButton('Start Capture', '#2196F3')
+        const clearBtn = makeButton('Clear', '#888')
+        const exportBtn = makeButton('Export JSON', '#4CAF50')
+
+        parentDiv.appendChild(startBtn)
+        parentDiv.appendChild(clearBtn)
+        parentDiv.appendChild(exportBtn)
+
+        startBtn.addEventListener('click', () => {
+            wsCapturing = !wsCapturing
+            startBtn.textContent = wsCapturing ? 'Stop Capture' : 'Start Capture'
+            startBtn.style.backgroundColor = wsCapturing ? '#f44336' : '#2196F3'
+            statusLabel.textContent = 'Status: ' + (wsCapturing ? 'capturing...' : 'paused')
+        })
+
+        clearBtn.addEventListener('click', () => {
+            wsFrames.length = 0
+        })
+
+        exportBtn.addEventListener('click', () => {
+            const blob = new Blob([JSON.stringify(wsFrames, null, 2)], { type: 'application/json' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            a.download = 'ws-frames-' + Date.now() + '.json'
+            document.body.appendChild(a)
+            a.click()
+            document.body.removeChild(a)
+            URL.revokeObjectURL(url)
+        })
+
+        setInterval(() => {
+            frameCountLabel.textContent = 'Frames: ' + wsFrames.length
+            connLabel.textContent = 'Connections: ' + wsConnCount
+        }, 500)
 
         parentNode.appendChild(parentDiv)
     }
