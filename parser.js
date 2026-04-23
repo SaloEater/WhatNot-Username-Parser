@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      1.27.1
+// @version      1.27.2
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -171,7 +171,7 @@ GM_addStyle(`
         parentNode.appendChild(button);
 
         button.addEventListener('click', function () {
-            document.body.removeChild(toolsNode)
+            parentNode.remove()
         })
 
         var toolContainer = document.createElement('div')
