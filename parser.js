@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      1.27.2
+// @version      1.28
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
 // @match        https://www.whatnot.com/live/*
+// @match        https://www.whatnot.com/user/*/obs/break-widget
 // @match        http://localhost:3000/break/*
 // @match        https://whatnot-frontend.vercel.app/break/*
 // @match        https://whatnot-frontend-psi.vercel.app/break/*
@@ -91,6 +92,14 @@ GM_addStyle(`
     const wsFrames = []
     let wsCapturing = false
 
+    let globalLastBreakData = null
+    if (currentURL.indexOf('obs/break-widget') !== -1) {
+        window.addEventListener('__wnBreakDetails', function(e) {
+            globalLastBreakData = e.detail
+            console.log('[Break Parser] early capture stored', globalLastBreakData?.data?.getBreak?.id)
+        })
+    }
+
     ;(function injectWsPatch() {
         const script = document.createElement('script')
         script.textContent = `(function() {
@@ -132,6 +141,39 @@ GM_addStyle(`
             PatchedWebSocket.CLOSED = NativeWS.CLOSED;
             window.WebSocket = PatchedWebSocket;
             console.log('[WS Capture] WebSocket patched in page context');
+            if (!window.__wnParserFetchPatched) {
+                window.__wnParserFetchPatched = true;
+                var _fetch = window.fetch;
+                window.fetch = function() {
+                    var args = arguments;
+                    var url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url) || '';
+                    var p = _fetch.apply(this, args);
+                    if (url.indexOf('GetBreakDetailsOBS') !== -1) {
+                        p.then(function(res) {
+                            var clone = res.clone();
+                            clone.json().then(function(data) {
+                                window.dispatchEvent(new CustomEvent('__wnBreakDetails', { detail: data }));
+                            });
+                        });
+                    }
+                    return p;
+                };
+            }
+            if (!window.__wnParserXhrPatched) {
+                window.__wnParserXhrPatched = true;
+                var _xhrOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    if (typeof url === 'string' && url.indexOf('GetBreakDetailsOBS') !== -1) {
+                        this.addEventListener('load', function() {
+                            try {
+                                var data = JSON.parse(this.responseText);
+                                window.dispatchEvent(new CustomEvent('__wnBreakDetails', { detail: data }));
+                            } catch(e) {}
+                        });
+                    }
+                    return _xhrOpen.apply(this, arguments);
+                };
+            }
         })();`
         document.documentElement.appendChild(script)
         script.remove()
@@ -182,6 +224,7 @@ GM_addStyle(`
             { name: 'Username Parser', tool: createUsernameParserTool },
             { name: 'WS Parser', tool: createWSParserTool },
             { name: 'WS Capture', tool: createWSCaptureTool },
+            { name: 'Break Parser', tool: createBreakParserTool },
             { name: 'Chat Only', tool: createChatOnlyTool },
             { name: 'Notes', tool: createNotesTool},
             { name: 'Giveaway Alarm', tool: createGiveawayAlarmTool}
@@ -208,7 +251,11 @@ GM_addStyle(`
             hideAllToolInterfaces()
             selectedTool.tool(toolContainer);
         });
-        toolOptions[0].tool(toolContainer);
+        const defaultTool = currentURL.indexOf('obs/break-widget') !== -1
+            ? toolOptions.find(t => t.name === 'Break Parser')
+            : toolOptions[0]
+        toolSelector.value = defaultTool.name
+        defaultTool.tool(toolContainer);
     }
 
     function initUI() {
@@ -619,6 +666,17 @@ GM_addStyle(`
                     GM_setValue("newEvent", null)
                     window.dispatchEvent(new CustomEvent(newEventEvent, { detail: {event: event} }));
                 }, 1500)
+                const breakOverviewEvent = 'break_overview_event'
+                setInterval(() => {
+                    let breakOverview = GM_getValue('BreakOverview', null)
+                    if (!breakOverview) {
+                        console.log('new event not found yet')
+                        return
+                    }
+                    console.log('got break overview', breakOverview)
+                    GM_setValue("BreakOverview", null)
+                    window.dispatchEvent(new CustomEvent(breakOverviewEvent, {detail: breakOverview}));
+                }, 1500)
                 console.log("Username receiver is started")
                 parentNode.removeChild(parentDiv)
             }
@@ -898,6 +956,67 @@ GM_addStyle(`
             const knownConns = new Set(wsFrames.map(f => f.connId))
             connLabel.textContent = 'Connections seen: ' + knownConns.size
         }, 500)
+
+        parentNode.appendChild(parentDiv)
+    }
+
+    function createBreakParserTool(parentNode) {
+        const parentDiv = document.createElement('div')
+        let updateCount = 0
+        let lastUpdateTs = null
+        let lastData = null
+
+        const statusEl = document.createElement('div')
+        statusEl.textContent = 'Listening for GetBreakDetailsOBS...'
+        statusEl.style.cssText = 'color:#aaa;font-size:12px;margin-bottom:6px;'
+        parentDiv.appendChild(statusEl)
+
+        const counterEl = document.createElement('div')
+        counterEl.textContent = 'Updates sent: 0'
+        counterEl.style.cssText = 'color:#fff;font-size:12px;margin-bottom:6px;'
+        parentDiv.appendChild(counterEl)
+
+        const syncBtn = document.createElement('button')
+        syncBtn.textContent = 'Sync'
+        syncBtn.disabled = true
+        syncBtn.style.cssText = 'font-size:24px;padding:2px 8px;cursor:pointer;background-color:#fff;color:#000;border:1px solid #ccc;border-radius:4px;'
+        syncBtn.addEventListener('click', () => {
+            if (!lastData) return
+            GM_setValue('BreakOverview', lastData)
+            console.log('[Break Parser] manual sync sent', JSON.stringify(lastData))
+        })
+        parentDiv.appendChild(syncBtn)
+
+        function formatAgo(ms) {
+            const s = Math.floor(ms / 1000)
+            if (s < 60) return s + 's ago'
+            const m = Math.floor(s / 60)
+            if (m < 60) return m + 'm ' + (s % 60) + 's ago'
+            return Math.floor(m / 60) + 'h ' + (m % 60) + 'm ago'
+        }
+
+        setInterval(() => {
+            if (lastUpdateTs !== null) {
+                statusEl.textContent = 'Last update: ' + formatAgo(Date.now() - lastUpdateTs)
+            }
+        }, 1000)
+
+        function onBreakDetails(e) {
+            console.log('[Break Parser] GetBreakDetailsOBS response:', e.detail)
+            lastData = e.detail
+            syncBtn.disabled = false
+            GM_setValue('BreakOverview', e.detail)
+            console.log("Sent", JSON.stringify(e.detail))
+            updateCount++
+            lastUpdateTs = Date.now()
+            statusEl.textContent = 'Last update: 0s ago'
+            counterEl.textContent = 'Updates sent: ' + updateCount
+        }
+        window.addEventListener('__wnBreakDetails', onBreakDetails)
+
+        if (globalLastBreakData) {
+            onBreakDetails({ detail: globalLastBreakData })
+        }
 
         parentNode.appendChild(parentDiv)
     }
