@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         WhatNot Username Parser
 // @namespace    http://tampermonkey.net/
-// @version      1.28
+// @version      1.28.1
 // @description  Parse sold events and send them to the system
 // @author       You
 // @match        https://www.whatnot.com/dashboard/live/*
@@ -198,7 +198,7 @@ GM_addStyle(`
         parentNode.style.padding = '10px';
         parentNode.style.fontSize = '2em'; // 2 times bigger font size
         parentNode.style.zIndex = '9000'; // Set a high z-index
-        document.body.appendChild(parentNode);
+        document.documentElement.appendChild(parentNode);
         return parentNode
     }
 
